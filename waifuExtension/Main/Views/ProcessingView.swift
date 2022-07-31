@@ -8,71 +8,29 @@
 import SwiftUI
 import Support
 
-struct StatusObserver {
-    
-    var processedItemsCounter: Int = 0
-    var pastTimeTaken: Double = 0 // up to 1s
-    
-    var isFinished: Bool = false {
-        didSet {
-            self.progress = 1
-            self.status = updateProgress()
-        }
-    }
-    var progress: Double = 0
-    
-    var status: LocalizedStringKey = "Loading..."
-    var statusProgress: (progress: Int, total: Int)? = nil
-    
-    var currentItems: [WorkItem] = [] {
-        didSet {
-            self.status = updateProgress()
-        }
-    }
-    var coordinator: ModelCoordinator?
-    
-    private func updateProgress() -> LocalizedStringKey {
-        guard let coordinator else { return "Loading.." }
-        
-        if !self.isFinished {
-            guard !currentItems.isEmpty else { return "Loading..." }
-            if coordinator.enableConcurrent && currentItems.count != 1 {
-                var subfix: String {
-                    let folder = currentItems.map({ $0.relativePath?.components(separatedBy: "/").last })
-                    if folder.allEqual(), let firstElement = folder.first, let firstElement {
-                        return "Processing \(currentItems.count) images in \(firstElement)"
-                    }
-                    return "Processing \(currentItems.count) images"
-                }
-            }
-            let firstItem = currentItems.first!
-            return "Processing \(firstItem.fileName)"
-        } else {
-            return "Finished"
-        }
-    }
-}
 
 struct ProcessingView: View {
     
-    private let background: DispatchQueue = DispatchQueue(label: "background", qos: .utility)
-    
-    @State private var timer = Timer.publish(every: 1, on: .current, in: .common).autoconnect()
+    @State private var timer = Timer.publish(every: 1, on: .main, in: .default).autoconnect()
     @State private var isShowingQuitConfirmation = false
     @State private var task = ShellManagers()
-    @State private var status = StatusObserver()
     
     @State private var isShowingTimeRemaining = true
+    
+    @Binding var isFinished: Bool
     
     @ObservedObject var images: MainModel
     
     @StateObject private var progressManager = ProgressManager()
+    @StateObject private var status = StatusObserver()
     
     @EnvironmentObject private var model: ModelCoordinator
+    @EnvironmentObject private var destination: DestinationDataProvider
+    
     @Environment(\.locale) private var local
     @Environment(\.dismiss) private var dismiss
     
-    @AppStorage("defaultOutputPath") var outputPath: FinderItem = .downloadsDirectory.with(subPath: "waifu Output")
+    @AppStorage("defaultOutputPath") var outputPath: FinderItem = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
     
     
     private var pendingCount: Int {
@@ -92,27 +50,34 @@ struct ProcessingView: View {
                     DoubleView("Progress:", text: "\(statusProgress.progress) / \(statusProgress.total)")
                 }
                 
-                DoubleView("Processed:") {
-                    if status.processedItemsCounter >= 2 {
-                        if pendingCount >= 2 {
-                            Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) items pending")
-                        } else if pendingCount == 1 {
-                            Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) item pending")
-                        } else {
-                            Text("\(status.processedItemsCounter.description) items")
+                if images.items.count > 1 {
+                    HStack {
+                        DoubleView("Processed:") {
+                            if status.processedItemsCounter >= 2 {
+                                if pendingCount >= 2 {
+                                    Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) items pending")
+                                } else if pendingCount == 1 {
+                                    Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) item pending")
+                                } else {
+                                    Text("\(status.processedItemsCounter.description) items")
+                                }
+                            } else {
+                                if pendingCount >= 2 {
+                                    Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) items pending")
+                                } else if pendingCount == 1 {
+                                    Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) item pending")
+                                } else {
+                                    Text("\(status.processedItemsCounter.description) item")
+                                }
+                            }
                         }
-                    } else {
-                        if pendingCount >= 2 {
-                            Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) items pending")
-                        } else if pendingCount == 1 {
-                            Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) item pending")
-                        } else {
-                            Text("\(status.processedItemsCounter.description) item")
-                        }
+                        
+                        Spacer()
                     }
-                    Spacer()
+                    .padding(.bottom)
                 }
-                .padding(.bottom)
+                
+                Spacer()
                 
                 DoubleView("Time Spent:", text: .init(status.pastTimeTaken.expressedAsTime()))
                 
@@ -138,7 +103,7 @@ struct ProcessingView: View {
                                 guard !status.isFinished else { return "Finished" }
                                 guard status.progress != 0 else { return "Calculating..." }
                                 
-                                var value = (status.pastTimeTaken) / status.progress
+                                var value = status.pastTimeTaken / status.progress
                                 value -= status.pastTimeTaken
                                 
                                 guard value > 0 else { return "Calculating..." }
@@ -191,19 +156,22 @@ struct ProcessingView: View {
                 
                 Spacer()
                 
-                if status.isFinished {
+                if status.isFinished && !destination.isNoneDestination {
                     Button("Show in Finder") {
                         outputPath.open()
+                        images.reset()
+                        dismiss()
                     }
                     .padding(.trailing)
                     
                     Button() {
-                        images.items = []
+                        images.reset()
                         dismiss()
                     } label: {
                         Text("Done")
                             .frame(width: 80)
                     }
+                    .keyboardShortcut(.cancelAction)
                 }
             }
         }
@@ -244,10 +212,18 @@ struct ProcessingView: View {
                 }
             }
             
+            if model.isCaffe {
+                model.caffe.finalizeModel()
+            }
+            
             Task.detached {
                 await images.work(model: model, task: task, manager: progressManager, outputPath: outputPath)
                 Task { @MainActor in
+                    isFinished = true
                     status.isFinished = true
+                    if destination.isNoneDestination {
+                        dismiss()
+                    }
                 }
             }
             

@@ -18,8 +18,10 @@ public struct Model_Caffe: Equatable, Codable, Hashable {
     
     public let block_size: Int
     
+    public var finalizedModel: MLModel! = nil
+    
     public var model: MLModel {
-        switch self.name{
+        switch self.name {
         case "anime_style_art_scale2":
             return try! anime_style_art_scale2(configuration: Model_Caffe.configuration).model
         case "anime_style_art_noise1_model":
@@ -92,7 +94,10 @@ public struct Model_Caffe: Equatable, Codable, Hashable {
         self.style = stye
     }
     
-    static let configuration = MLModelConfiguration()
+    static let configuration = {
+        let configuration = MLModelConfiguration()
+        return configuration
+    }()
     
     public static let allModels: [Model_Caffe] = [
 //        Model_Caffe(class: "anime_style_art", name: "anime_style_art_scale2", stye: "anime", scale: 2, noise: nil),
@@ -150,6 +155,20 @@ public struct Model_Caffe: Equatable, Codable, Hashable {
     public static let waifu2x_photo_noise1 = Model_Caffe(class: "photo", name: "photo_noise1_model", stye: "photo", scale: 1, noise: 1)
     public static let waifu2x_photo_noise2 = Model_Caffe(class: "photo", name: "photo_noise2_model", stye: "photo", scale: 1, noise: 2)
     public static let waifu2x_photo_noise3 = Model_Caffe(class: "photo", name: "photo_noise3_model", stye: "photo", scale: 1, noise: 3)
+    
+    /// Must be called to run with Waifu2x. Used to decrease the need of loading the model multiple times
+    public mutating func finalizeModel() {
+        self.finalizedModel = self.model
+    }
+    
+    enum CodingKeys: CodingKey {
+        case `class`
+        case name
+        case scale
+        case noise
+        case style
+        case block_size
+    }
     
 }
 

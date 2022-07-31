@@ -12,61 +12,10 @@ import os
 import Support
 import SwiftUI
 
-class Counter {
-    var concurrentImage: Int = 0
-    
-    func increaseConcurrentImage() {
-        concurrentImage += 1
-    }
-    
-    func decreaseConcurrentImage() {
-        concurrentImage -= 1
-    }
-}
-
-class ArrayContainer<Element> {
-    
-    var contents: [Element] = []
-    
-    func append(_ newItem: Element) {
-        contents.append(newItem)
-    }
-    
-    var first: Element? {
-        contents.first
-    }
-    
-    func removeAll() {
-        contents.removeAll()
-    }
-    
-    func append(contentsOf sequence: [Element]) {
-        self.contents.append(contentsOf: sequence)
-    }
-    
-    func replace(with newValue: Element, at index: Int) {
-        self.contents[index] = newValue
-    }
-    
-}
 
 func inferenceProgress(_ text: String) -> Double? {
     if let index = text.lastIndex(of: "%") {
-        var startIndex = index
-        var forced = false
-        
-        var lastCharacter = text[text.index(before: startIndex)]
-        while Int(String(lastCharacter)) != nil || lastCharacter == "." {
-            text.formIndex(before: &startIndex)
-            guard startIndex != text.startIndex else { forced = true; break }
-            lastCharacter = text[text.index(before: startIndex)]
-        }
-        if !forced {
-            text.formIndex(after: &startIndex)
-        }
-        
-        guard startIndex < index else { return nil }
-        guard let value = Double(text[startIndex..<index]) else { return nil }
+        guard let value = Double(text[text.startIndex..<index]) else { return nil }
         return value / 100
     } else {
         //        guard let lastIndex = text.lastIndex(where:  { $0.isNumber }) else { return nil }
@@ -173,32 +122,6 @@ extension Array where Element == WorkItem {
 
 extension FinderItem {
     
-    func saveAudioTrack(to path: String) async throws {
-        // Create a composition
-        let composition = AVMutableComposition()
-        guard let asset = avAsset else {
-            throw NSError(domain: "no avAsset found", code: 1, userInfo: nil)
-        }
-        guard let audioAssetTrack = asset.tracks(withMediaType: AVMediaType.audio).first else { print("eror: 1"); return }
-        guard let audioCompositionTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { print("eror: 1"); return }
-        try! audioCompositionTrack.insertTimeRange(audioAssetTrack.timeRange, of: audioAssetTrack, at: CMTime.zero)
-        print(audioAssetTrack.trackID, audioAssetTrack.timeRange)
-        
-        // Get url for output
-        let outputUrl = URL(fileURLWithPath: path)
-        if FileManager.default.fileExists(atPath: outputUrl.path) {
-            try? FileManager.default.removeItem(atPath: outputUrl.path)
-        }
-        
-        // Create an export session
-        let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A)!
-        exportSession.outputFileType = AVFileType.m4a
-        exportSession.outputURL = outputUrl
-        
-        // Export file
-        await exportSession.export()
-    }
-    
     /// Merges video and sound while keeping sound of the video too
     ///
     /// - Parameters:
@@ -215,6 +138,8 @@ extension FinderItem {
             return
         }
         
+        let destinationDataProvider = DestinationDataProvider.main
+        
         let mixComposition: AVMutableComposition = AVMutableComposition()
         var mutableCompositionVideoTrack: [AVMutableCompositionTrack] = []
         var mutableCompositionAudioTrack: [AVMutableCompositionTrack] = []
@@ -222,6 +147,7 @@ extension FinderItem {
         
         let aVideoAsset: AVAsset = AVAsset(url: videoUrl)
         let aAudioAsset: AVAsset = AVAsset(url: audioUrl)
+        let logger = Logger()
         
         if let videoTrack = mixComposition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid), let audioTrack = mixComposition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
             mutableCompositionVideoTrack.append(videoTrack)
@@ -230,16 +156,24 @@ extension FinderItem {
             if let aVideoAssetTrack: AVAssetTrack = aVideoAsset.tracks(withMediaType: .video).first, let aAudioAssetTrack: AVAssetTrack = aAudioAsset.tracks(withMediaType: .audio).first {
                 do {
                     try mutableCompositionVideoTrack.first?.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: aVideoAssetTrack.timeRange.duration), of: aVideoAssetTrack, at: CMTime.zero)
-                    try mutableCompositionAudioTrack.first?.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: aVideoAssetTrack.timeRange.duration), of: aAudioAssetTrack, at: CMTime.zero)
+                    try mutableCompositionAudioTrack.first?.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: aAudioAssetTrack.timeRange.duration), of: aAudioAssetTrack, at: CMTime.zero)
                     videoTrack.preferredTransform = aVideoAssetTrack.preferredTransform
                     
                 } catch{
                     Logger().error("failed to add audio track and video track: \(error.localizedDescription)")
                 }
                 
+                let destination = FinderItem(at: videoUrl)
+                if destination.isExistence {
+                    destination.removeFile()
+                }
                 
                 totalVideoCompositionInstruction.timeRange = CMTimeRangeMake(start: CMTime.zero,duration: aVideoAssetTrack.timeRange.duration)
+            } else {
+                logger.error("Failed to load audio track or video track")
             }
+        } else {
+            logger.error("Failed to add tracks to the composition")
         }
         
         let mutableVideoComposition: AVMutableVideoComposition = AVMutableVideoComposition()
@@ -247,22 +181,15 @@ extension FinderItem {
         mutableVideoComposition.frameDuration = CMTimeMake(value: Int64(frame.denominator), timescale: Int32(frame.numerator))
         mutableVideoComposition.renderSize = aVideoAsset.tracks(withMediaType: .video).first!.naturalSize
         
-        let outputURL = videoUrl
-        
-        do {
-            if FileManager.default.fileExists(atPath: outputURL.path) {
-                try FileManager.default.removeItem(at: outputURL)
-            }
-        } catch { }
-        
-        if let exportSession = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetHEVCHighestQuality) {
-            exportSession.outputURL = outputURL
-            exportSession.outputFileType = AVFileType.m4v
+        if let exportSession = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetPassthrough) {
+            exportSession.outputURL = videoUrl
+            exportSession.outputFileType = destinationDataProvider.videoContainer.avFileType
             exportSession.shouldOptimizeForNetworkUse = true
             
             await exportSession.export()
+            
+            logger.info("merge video and audio finished")
         } else {
-            let logger = Logger()
             logger.error("failed to merge video and audio: filed by create export session")
         }
         
@@ -276,6 +203,8 @@ extension FinderItem {
         let logger = Logger()
         logger.info("Generate Video to \(videoPath) from images at fps of \(videoFPS)")
         FinderItem(at: videoPath).generateDirectory()
+        
+        let destinationDataProvider = DestinationDataProvider.main
         
         // Create AVAssetWriter to write video
         let finderItemAtVideoPath = FinderItem(at: videoPath)
@@ -291,11 +220,11 @@ extension FinderItem {
         // Return new asset writer or nil
         do {
             // Create asset writer
-            assetWriter = try AVAssetWriter(outputURL: pathURL, fileType: AVFileType.m4v)
+            assetWriter = try AVAssetWriter(outputURL: pathURL, fileType: destinationDataProvider.videoContainer.avFileType)
             
             // Define settings for video input
             let videoSettings: [String : AnyObject] = [
-                AVVideoCodecKey  : AVVideoCodecType.hevc as AnyObject,
+                AVVideoCodecKey  : destinationDataProvider.videoCodec.avVideoCodecType as AnyObject,
                 AVVideoWidthKey  : videoSize.width as AnyObject,
                 AVVideoHeightKey : videoSize.height as AnyObject,
             ]
@@ -332,17 +261,17 @@ extension FinderItem {
         let mediaQueue = DispatchQueue(label: "mediaInputQueue", attributes: [])
         
         // -- Set video parameters
-        let fraction = Fraction(videoFPS)
-        let frameDuration = CMTimeMake(value: Int64(fraction.denominator), timescale: Int32(fraction.numerator))
+        let frameRate = Fraction(videoFPS)
+        let frameDuration = CMTimeMake(value: Int64(frameRate.denominator), timescale: Int32(frameRate.numerator))
         var frameCount = 0
         
         // -- Add images to video
         let numImages = allImages.count
-        let _: Void = await withCheckedContinuation({ continuation in
-            writerInput.requestMediaDataWhenReady(on: mediaQueue, using: { () -> Void in
+        await withCheckedContinuation{ continuation in
+            writerInput.requestMediaDataWhenReady(on: mediaQueue, using: {
                 // Append unadded images to video but only while input ready
                 while (writerInput.isReadyForMoreMediaData && frameCount < numImages) {
-                    let lastFrameTime = CMTimeMake(value: Int64(frameCount) * Int64(fraction.denominator), timescale: Int32(fraction.numerator))
+                    let lastFrameTime = CMTimeMake(value: Int64(frameCount) * Int64(frameRate.denominator), timescale: Int32(frameRate.numerator))
                     let presentationTime = frameCount == 0 ? lastFrameTime : CMTimeAdd(lastFrameTime, frameDuration)
                     
                     autoreleasepool {
@@ -408,7 +337,7 @@ extension FinderItem {
                     continuation.resume()
                 }
             })
-        })
+        }
         
         mediaQueue.sync {
             logger.info("finished adding frames")
@@ -426,7 +355,7 @@ extension FinderItem {
     static func trimVideo(sourceURL: URL, outputURL: URL, startTime: Double, endTime: Double) async {
         let asset = AVAsset(url: sourceURL as URL)
         
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHEVCHighestQuality) else { return }
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else { return }
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .m4v
         
@@ -439,7 +368,9 @@ extension FinderItem {
         }
         
         exportSession.timeRange = timeRange
+        print("awaiting export")
         await exportSession.export()
+        print("exported")
     }
     
     /// merge videos from videos
@@ -507,12 +438,12 @@ extension FinderItem {
             
             let mainComposition = AVMutableVideoComposition()
             mainComposition.instructions = [mainInstruction]
-            let fraction = Fraction(frameRate)
-            mainComposition.frameDuration = CMTimeMake(value: Int64(fraction.denominator), timescale: Int32(fraction.numerator))
+            let frameRate = Fraction(frameRate)
+            mainComposition.frameDuration = CMTimeMake(value: Int64(frameRate.denominator), timescale: Int32(frameRate.numerator))
             mainComposition.renderSize = videoSize
             print(">><< \(1 / mainComposition.frameDuration.seconds)")
             
-            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetHEVCHighestQuality)!
+            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetPassthrough)!
             exporter.outputURL = URL(fileURLWithPath: toPath)
             exporter.outputFileType = AVFileType.mov
             exporter.shouldOptimizeForNetworkUse = false

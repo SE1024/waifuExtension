@@ -9,8 +9,10 @@ import Foundation
 import Support
 
 @dynamicMemberLookup public final class WorkItem: Equatable, Identifiable, Hashable {
+    
     public var finderItem: FinderItem
-    public var type: ItemType
+    public let originalFile: FinderItem
+    public let type: ItemType
     
     public enum ItemType: String {
         case video, image
@@ -18,6 +20,7 @@ import Support
     
     init(at finderItem: FinderItem, type: ItemType) {
         self.finderItem = finderItem
+        self.originalFile = finderItem
         self.type = type
     }
     

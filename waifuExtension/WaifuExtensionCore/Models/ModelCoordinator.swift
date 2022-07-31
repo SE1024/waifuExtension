@@ -175,7 +175,7 @@ public struct _ModelCoordinator: CustomStringConvertible, Codable, Hashable, Equ
     }
     
     public var description: String {
-        "ModelCoordinate<imageModel: \(imageModel), frameModel: \(frameModel), frameSegmentFrames: \(videoSegmentFrames), scaleLevel: \(scaleLevel), enableFrameInterpolation: \(enableConcurrent), frameInterpolation: \(frameInterpolation), enableConcurrent: \(enableConcurrent)>"
+        "ModelCoordinate<imageModel: \(imageModel), frameModel: \(frameModel), frameSegmentFrames: \(videoSegmentFrames), scaleLevel: \(scaleLevel), enableFrameInterpolation: \(enableFrameInterpolation), frameInterpolation: \(frameInterpolation), enableConcurrent: \(enableConcurrent)>"
     }
     
     public var enableMemoryOnly: Bool = false

@@ -17,9 +17,9 @@ struct BiasRecorder: Equatable {
     static var contents: [BiasRecorder] = []
     
     static func add(bias: BiasRecorder) {
-        biasQueue.async {
-            contents.append(bias)
-        }
+//        biasQueue.async {
+//            contents.append(bias)
+//        }
     }
     
     enum Stage: String, CaseIterable {

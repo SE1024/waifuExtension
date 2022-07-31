@@ -15,6 +15,7 @@ struct waifuExtensionApp: App {
     
     @StateObject private var modelDataProvider = ModelDataProvider.main
     @StateObject private var model = ModelCoordinator.main
+    @State private var destination = DestinationDataProvider.main
     
     var body: some Scene {
         WindowGroup {
@@ -23,6 +24,7 @@ struct waifuExtensionApp: App {
                 .navigationTitle("")
                 .environmentObject(modelDataProvider)
                 .environmentObject(model)
+                .environmentObject(destination)
         }
         .commands {
             CommandGroup(replacing: .newItem) { }
@@ -33,6 +35,7 @@ struct waifuExtensionApp: App {
                 .frame(width: 400)
                 .environmentObject(modelDataProvider)
                 .environmentObject(model)
+                .environmentObject(destination)
         }
     }
     
@@ -57,6 +60,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         ModelDataProvider.main.save()
         ModelCoordinator.main.save()
+        DestinationDataProvider.main.save()
     }
     
 }

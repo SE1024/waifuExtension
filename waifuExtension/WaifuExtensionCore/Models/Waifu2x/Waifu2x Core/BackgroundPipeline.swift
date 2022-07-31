@@ -27,8 +27,6 @@ class BackgroundPipeline <T> {
     /// Background DispatchQueue to run operations
     private let background: DispatchQueue
     
-    private let waifu2x: Waifu2x
-    
     /// Constructor
     ///
     /// - Parameters:
@@ -37,10 +35,9 @@ class BackgroundPipeline <T> {
     ///   - task: The task to run on each object
     ///   - index: Index of the object
     ///   - obj: The object
-    init(_ name: String, count: Int, waifu2x: Waifu2x, task: @escaping (_ index: Int, _ obj: T) -> Void) {
+    init(_ name: String, count: Int, task: @escaping (_ index: Int, _ obj: T) -> Void) {
         self.count = count
         background = DispatchQueue(label: name, qos: .userInteractive)
-        self.waifu2x = waifu2x
         
         background.async {
             

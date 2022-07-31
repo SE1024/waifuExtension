@@ -14,68 +14,111 @@ struct ConfigurationView: View {
     @State private var isShowingImportDialog = false
     @State private var alterManager = AlertManager()
     
-    @AppStorage("defaultOutputPath") private var outputPath: FinderItem = .downloadsDirectory.with(subPath: "waifu Output")
+    @EnvironmentObject private var destination: DestinationDataProvider
+    
+    private var destinationName: LocalizedStringKey {
+        if destination.destinationFolder == .generatedFolder {
+            return "None"
+        } else if destination.destinationFolder == .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: "")) {
+            return "Downloads/Waifu Output"
+        } else {
+            return .init(destination.destinationFolder.relativePath(to: .homeDirectory) ?? destination.destinationFolder.path)
+        }
+    }
+    
+    var destinationMenu: some View {
+        Menu(destinationName) {
+            Button("Downloads/Waifu Output") {
+                destination.destinationFolder = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
+            }
+            
+            Button("None") {
+                destination.destinationFolder = .generatedFolder
+            }
+            
+            Divider()
+            
+            Button("Other...") {
+                isShowingImportDialog = true
+            }
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading) {
             
-            HStack {
-                Text("Save Folder")
-                
-                Menu(outputPath.relativePath(to: .homeDirectory) ?? outputPath.path) {
-                    Button("Downloads/Waifu Output") {
-                        outputPath = .downloadsDirectory.with(subPath: "waifu Output")
+            Group {
+                if #available(macOS 13.0, *) {
+                    LabeledContent("Destination") {
+                        destinationMenu
                     }
-                    
-                    Divider()
-                    
-                    Button("Other...") {
-                        isShowingImportDialog = true
+                } else {
+                    HStack {
+                        Text("Destination")
+                        
+                        destinationMenu
                     }
                 }
             }
-            .padding()
             .fileImporter(isPresented: $isShowingImportDialog, allowedContentTypes: [.directory]) { result in
                 guard let resultItem = FinderItem(at: try? result.get()), resultItem.isDirectory else {
                     alterManager = AlertManager("Please choose a folder.")
                     return
                 }
-                outputPath = resultItem
+                destination.destinationFolder = resultItem
             }
             
-            Spacer()
+            Text {
+                destination.isNoneDestination ? "Instead of putting into a folder, drag them somewhere" : "The folder where the generated images are stored."
+            }
+            .font(.callout)
+            .foregroundColor(.secondary)
+//            .padding(.bottom)
             
-            HStack {
-                Button {
-                    FinderItem.homeDirectory.revealInFinder()
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .help("Show Container")
-                
-                Spacer()
-                
-//                Button("show bias") {
-//                    for stage in BiasRecorder.Stage.allCases {
-//                        print("\(stage): \(BiasRecorder.bias(of: stage))")
-//                    }
-//                }
-                
-                Text {
-                    if let size = FinderItem.temporaryDirectory.fileSize, size > 0 {
-                        return "Cache: \(size.expressAsFileSize())"
-                    } else {
-                        return "Cache: Empty"
+            Divider()
+                .padding(.bottom)
+            
+            Form {
+                DestinationDataProvideeView(providee: $destination.imageFormat, options: DestinationDataProvider.ImageFormat.allCases)
+                DestinationDataProvideeView(providee: $destination.videoContainer, options: DestinationDataProvider.VideoContainer.allCases)
+                    .onChange(of: destination.videoContainer) { newValue in
+                        if !newValue.codecs.contains(destination.videoCodec) {
+                            // not all the options are available.
+                            destination.videoCodec = DestinationDataProvider.VideoCodec.default
+                        }
                     }
-                }
-                    .foregroundColor(.secondary)
-                
-                Button("Delete Cache") {
-                    FinderItem.temporaryDirectory.clear()
-                }
+                DestinationDataProvideeView(providee: $destination.videoCodec, options: destination.videoContainer.codecs)
             }
-            .padding()
+            
+            Text {
+                "When unavailable, a default format would be used instead."
+            }
+            .font(.callout)
+            .foregroundColor(.secondary)
         }
+        .padding()
+    }
+    
+}
+
+struct DestinationDataProvideeView<Providee: DestinationDataProvidee>: View {
+    
+    @Binding var providee: Providee
+    
+    let options: [Providee]
+    
+    var body: some View {
+        Group {
+            Picker(Providee.label, selection: $providee, options: options)
+                .help(providee.prompt)
+        }
+    }
+}
+
+extension FinderItem {
+    
+    static var generatedFolder: FinderItem {
+        .temporaryDirectory.with(subPath: "Generated Folder")
     }
     
 }

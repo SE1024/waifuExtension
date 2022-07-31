@@ -12,25 +12,25 @@ struct GridItemView: View {
     
     let item: WorkItem
     let geometry: GeometryProxy
+    let gridNumber: Double
     
     @ObservedObject var images: MainModel
     
-    @AppStorage("ContentView.gridNumber") private var gridNumber = 1.6
     @AppStorage("ContentView.aspectRatio") private var aspectRatio = true
     
     var body: some View {
         VStack(alignment: .center) {
             
             AsyncView {
-                item.finderItem.image ?? item.finderItem.avAsset?.firstFrame ?? NSImage(named: "placeholder")!
+                item.originalFile.image ?? NativeImage(cgImage: item.originalFile.avAsset?.firstFrame) ?? NSImage(named: "placeholder")!
             } content: { result in
                 Image(nsImage: result)
                     .resizable()
-                    .cornerRadius(5)
                     .aspectRatio(contentMode: aspectRatio ? .fit : .fill)
-                    .frame(width: geometry.size.width * gridNumber / 8.5, height: geometry.size.width * gridNumber / 8.5)
-                    .clipped()
-                    .padding([.top, .leading, .trailing])
+                    .cornerRadius(5)
+                    .frame(width: geometry.size.width * gridNumber / 8.5)
+                    .cornerRadius(5)
+                    .padding()
                     .help {
                         if let size = result.pixelSize {
                             var value = """
@@ -39,7 +39,7 @@ struct GridItemView: View {
                             size: \(size.width) × \(size.height)
                             """
                             if item.type == .video {
-                                value += "\nlength: \(item.finderItem.avAsset?.duration.seconds.expressedAsTime() ?? "0s")"
+                                value += "\nlength: \(item.originalFile.avAsset?.duration.seconds.expressedAsTime() ?? "0s")"
                             }
                             return .init(value)
                         } else {
@@ -64,10 +64,14 @@ struct GridItemView: View {
             Button("Open") {
                 item.finderItem.open()
             }
+            
             Button("Show in Finder") {
                 item.finderItem.revealInFinder()
             }
-            Button("Delete") {
+            
+            Divider()
+            
+            Button("Remove") {
                 withAnimation {
                     images.items.removeAll { $0 == item }
                 }

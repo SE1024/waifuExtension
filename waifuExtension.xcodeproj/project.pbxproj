@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		B41527FB27555EC80051CE81 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = B41527FA27555EC80051CE81 /* README.md */; };
 		B41527FD27555ECF0051CE81 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = B41527FC27555ECF0051CE81 /* LICENSE */; };
+		B41BD2952885B9FA0078EFD6 /* SingleCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41BD2942885B9FA0078EFD6 /* SingleCore.swift */; };
+		B41BD2972885BA760078EFD6 /* processVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41BD2962885BA760078EFD6 /* processVideo.swift */; };
+		B41BD29A2885BBDC0078EFD6 /* HeavilyDistributed.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41BD2992885BBDC0078EFD6 /* HeavilyDistributed.swift */; };
 		B41C473C274AA7850024ECB7 /* waifuExtensionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41C473B274AA7850024ECB7 /* waifuExtensionApp.swift */; };
 		B41C473E274AA7850024ECB7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41C473D274AA7850024ECB7 /* ContentView.swift */; };
 		B41C4740274AA7850024ECB7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B41C473F274AA7850024ECB7 /* Assets.xcassets */; };
@@ -16,10 +19,15 @@
 		B445F70027585906004BAE04 /* ConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B445F6FF27585906004BAE04 /* ConfigurationView.swift */; };
 		B464DB2B285A446700127992 /* Support in Frameworks */ = {isa = PBXBuildFile; productRef = B464DB2A285A446700127992 /* Support */; };
 		B48748D628563CC200ECD00E /* ContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48748D528563CC200ECD00E /* ContainerView.swift */; };
+		B48765032892CE06007AEA22 /* DestinationDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48765022892CE06007AEA22 /* DestinationDataProvider.swift */; };
 		B4953AFF28224708003F7257 /* GridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4953AFE28224708003F7257 /* GridView.swift */; };
 		B4953B0128224757003F7257 /* ModelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4953B0028224757003F7257 /* ModelView.swift */; };
 		B4953B032822478D003F7257 /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4953B022822478D003F7257 /* ProcessingView.swift */; };
+		B4968CB52885E6330091AF2E /* WorkItemDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4968CB42885E6330091AF2E /* WorkItemDocument.swift */; };
+		B4972090287DD3CC0039B9F2 /* StatusObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B497208F287DD3CC0039B9F2 /* StatusObserver.swift */; };
 		B4B8B8482879FF2000585DA5 /* ProcessConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B8B8472879FF2000585DA5 /* ProcessConfig.swift */; };
+		B4CFCD592885A0A30065B67C /* work.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4CFCD582885A0A30065B67C /* work.swift */; };
+		B4CFCD5B2885A12C0065B67C /* processImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4CFCD5A2885A12C0065B67C /* processImage.swift */; };
 		B4D8A42C2876A13A005E9A37 /* Process Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8A3EE2876A13A005E9A37 /* Process Supports.swift */; };
 		B4D8A42D2876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise3_scale2.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = B4D8A3F32876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise3_scale2.mlpackage */; };
 		B4D8A42E2876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise2_scale2.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = B4D8A3F42876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise2_scale2.mlpackage */; };
@@ -72,6 +80,8 @@
 		B4D8A4622876A173005E9A37 /* realcugan-ncnn-vulkan in Resources */ = {isa = PBXBuildFile; fileRef = B4D8A45F2876A171005E9A37 /* realcugan-ncnn-vulkan */; };
 		B4D8A4632876A173005E9A37 /* realesrgan-ncnn-vulkan in Resources */ = {isa = PBXBuildFile; fileRef = B4D8A4602876A173005E9A37 /* realesrgan-ncnn-vulkan */; };
 		B4E96BC627EF6CFD00A2D4B1 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4E96BC527EF6CFD00A2D4B1 /* ModelManager.swift */; };
+		B4F0BEB028953363004552D8 /* ExpandWidthHeight.metal in Sources */ = {isa = PBXBuildFile; fileRef = B4F0BEAF28953363004552D8 /* ExpandWidthHeight.metal */; };
+		B4F0BEB228953DDA004552D8 /* Waifu2xMLOut.metal in Sources */ = {isa = PBXBuildFile; fileRef = B4F0BEB128953DDA004552D8 /* Waifu2xMLOut.metal */; };
 		B4F1F3742876AB5F00D6851F /* BiasRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F1F3732876AB5F00D6851F /* BiasRecorder.swift */; };
 		B4F1F3782876B8E700D6851F /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = B4F1F37A2876B8E700D6851F /* Localizable.strings */; };
 /* End PBXBuildFile section */
@@ -80,6 +90,9 @@
 		B40CF97A2876CBD400376992 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		B41527FA27555EC80051CE81 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B41527FC27555ECF0051CE81 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		B41BD2942885B9FA0078EFD6 /* SingleCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleCore.swift; sourceTree = "<group>"; };
+		B41BD2962885BA760078EFD6 /* processVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = processVideo.swift; sourceTree = "<group>"; };
+		B41BD2992885BBDC0078EFD6 /* HeavilyDistributed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeavilyDistributed.swift; sourceTree = "<group>"; };
 		B41C4738274AA7850024ECB7 /* waifuExtension.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = waifuExtension.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B41C473B274AA7850024ECB7 /* waifuExtensionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = waifuExtensionApp.swift; sourceTree = "<group>"; };
 		B41C473D274AA7850024ECB7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -89,10 +102,16 @@
 		B445F6FF27585906004BAE04 /* ConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationView.swift; sourceTree = "<group>"; };
 		B446F51128223B1600FF42D6 /* DataBase */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DataBase; path = ../../Packages/DataBase; sourceTree = "<group>"; };
 		B48748D528563CC200ECD00E /* ContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerView.swift; sourceTree = "<group>"; };
+		B48765022892CE06007AEA22 /* DestinationDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationDataProvider.swift; sourceTree = "<group>"; };
 		B4953AFE28224708003F7257 /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		B4953B0028224757003F7257 /* ModelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelView.swift; sourceTree = "<group>"; };
 		B4953B022822478D003F7257 /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
+		B4968CB42885E6330091AF2E /* WorkItemDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkItemDocument.swift; sourceTree = "<group>"; };
+		B497208F287DD3CC0039B9F2 /* StatusObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusObserver.swift; sourceTree = "<group>"; };
+		B4972093287DE0B60039B9F2 /* ChangeLog.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ChangeLog.md; sourceTree = "<group>"; };
 		B4B8B8472879FF2000585DA5 /* ProcessConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessConfig.swift; sourceTree = "<group>"; };
+		B4CFCD582885A0A30065B67C /* work.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = work.swift; sourceTree = "<group>"; };
+		B4CFCD5A2885A12C0065B67C /* processImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = processImage.swift; sourceTree = "<group>"; };
 		B4D8A3EE2876A13A005E9A37 /* Process Supports.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Process Supports.swift"; sourceTree = "<group>"; };
 		B4D8A3F32876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise3_scale2.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = upconv_7_anime_style_art_rgb_noise3_scale2.mlpackage; sourceTree = "<group>"; };
 		B4D8A3F42876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise2_scale2.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = upconv_7_anime_style_art_rgb_noise2_scale2.mlpackage; sourceTree = "<group>"; };
@@ -145,6 +164,8 @@
 		B4D8A45F2876A171005E9A37 /* realcugan-ncnn-vulkan */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "realcugan-ncnn-vulkan"; sourceTree = "<group>"; };
 		B4D8A4602876A173005E9A37 /* realesrgan-ncnn-vulkan */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "realesrgan-ncnn-vulkan"; sourceTree = "<group>"; };
 		B4E96BC527EF6CFD00A2D4B1 /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
+		B4F0BEAF28953363004552D8 /* ExpandWidthHeight.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ExpandWidthHeight.metal; sourceTree = "<group>"; };
+		B4F0BEB128953DDA004552D8 /* Waifu2xMLOut.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Waifu2xMLOut.metal; sourceTree = "<group>"; };
 		B4F1F3732876AB5F00D6851F /* BiasRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiasRecorder.swift; sourceTree = "<group>"; };
 		B4F1F3792876B8E700D6851F /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		B4F1F37B2876B8EA00D6851F /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -162,6 +183,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B41BD2982885BBA10078EFD6 /* MemoryOnly */ = {
+			isa = PBXGroup;
+			children = (
+				B41BD2942885B9FA0078EFD6 /* SingleCore.swift */,
+				B41BD2992885BBDC0078EFD6 /* HeavilyDistributed.swift */,
+			);
+			path = MemoryOnly;
+			sourceTree = "<group>";
+		};
 		B41C472F274AA7850024ECB7 = {
 			isa = PBXGroup;
 			children = (
@@ -261,9 +291,21 @@
 			isa = PBXGroup;
 			children = (
 				B41C473B274AA7850024ECB7 /* waifuExtensionApp.swift */,
+				B4972093287DE0B60039B9F2 /* ChangeLog.md */,
 				B4953AFB28224694003F7257 /* Views */,
 			);
 			path = Main;
+			sourceTree = "<group>";
+		};
+		B4CFCD562885A0870065B67C /* ProcessFile */ = {
+			isa = PBXGroup;
+			children = (
+				B4CFCD582885A0A30065B67C /* work.swift */,
+				B4CFCD5A2885A12C0065B67C /* processImage.swift */,
+				B41BD2982885BBA10078EFD6 /* MemoryOnly */,
+				B41BD2962885BA760078EFD6 /* processVideo.swift */,
+			);
+			path = ProcessFile;
 			sourceTree = "<group>";
 		};
 		B4D8A3EC2876A13A005E9A37 /* WaifuExtensionCore */ = {
@@ -280,7 +322,9 @@
 		B4D8A3ED2876A13A005E9A37 /* Supports */ = {
 			isa = PBXGroup;
 			children = (
+				B497208F287DD3CC0039B9F2 /* StatusObserver.swift */,
 				B4D8A3EE2876A13A005E9A37 /* Process Supports.swift */,
+				B48765022892CE06007AEA22 /* DestinationDataProvider.swift */,
 			);
 			path = Supports;
 			sourceTree = "<group>";
@@ -394,11 +438,13 @@
 				B4D8A4152876A13A005E9A37 /* CGImage+Crop.swift */,
 				B4D8A4162876A13A005E9A37 /* Bicubic.swift */,
 				B4D8A4172876A13A005E9A37 /* Waifu2x.swift */,
+				B4F0BEB128953DDA004552D8 /* Waifu2xMLOut.metal */,
 				B4D8A4182876A13A005E9A37 /* BackgroundTask.swift */,
 				B4D8A4192876A13A005E9A37 /* NSImage+Crop.swift */,
 				B4D8A41A2876A13A005E9A37 /* Queue.swift */,
 				B4D8A41B2876A13A005E9A37 /* NSImage+Alpha.swift */,
 				B4D8A41C2876A13A005E9A37 /* CGImage+Expand.swift */,
+				B4F0BEAF28953363004552D8 /* ExpandWidthHeight.metal */,
 				B4D8A41D2876A13A005E9A37 /* bicubic.metal */,
 				B4D8A41E2876A13A005E9A37 /* Calculation.metal */,
 				B4D8A41F2876A13A005E9A37 /* Info.plist */,
@@ -430,7 +476,9 @@
 			isa = PBXGroup;
 			children = (
 				B4D8A42A2876A13A005E9A37 /* WorkItem.swift */,
+				B4968CB42885E6330091AF2E /* WorkItemDocument.swift */,
 				B4D8A42B2876A13A005E9A37 /* MainModel.swift */,
+				B4CFCD562885A0870065B67C /* ProcessFile */,
 			);
 			path = WorkItem;
 			sourceTree = "<group>";
@@ -540,20 +588,25 @@
 				B4D8A4592876A13A005E9A37 /* ModelDataProvider.swift in Sources */,
 				B4D8A4562876A13A005E9A37 /* Model_Caffe.swift in Sources */,
 				B4D8A4322876A13A005E9A37 /* upconv_7_photo_noise3_scale2.mlpackage in Sources */,
+				B41BD29A2885BBDC0078EFD6 /* HeavilyDistributed.swift in Sources */,
 				B48748D628563CC200ECD00E /* ContainerView.swift in Sources */,
 				B4F1F3742876AB5F00D6851F /* BiasRecorder.swift in Sources */,
 				B4D8A43A2876A13A005E9A37 /* anime_style_art_noise3_model.mlpackage in Sources */,
 				B4D8A44D2876A13A005E9A37 /* NSImage+Crop.swift in Sources */,
 				B4E96BC627EF6CFD00A2D4B1 /* ModelManager.swift in Sources */,
+				B41BD2952885B9FA0078EFD6 /* SingleCore.swift in Sources */,
 				B445F70027585906004BAE04 /* ConfigurationView.swift in Sources */,
 				B4D8A4572876A13A005E9A37 /* ModelCoordinator.swift in Sources */,
 				B4D8A4522876A13A005E9A37 /* Calculation.metal in Sources */,
 				B4D8A4552876A13A005E9A37 /* MetalBicubic.swift in Sources */,
+				B4CFCD5B2885A12C0065B67C /* processImage.swift in Sources */,
 				B4D8A42F2876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise1_scale2.mlpackage in Sources */,
 				B4D8A44C2876A13A005E9A37 /* BackgroundTask.swift in Sources */,
 				B4D8A44B2876A13A005E9A37 /* Waifu2x.swift in Sources */,
 				B4D8A4342876A13A005E9A37 /* upconv_7_photo_scale2.mlpackage in Sources */,
+				B4F0BEB028953363004552D8 /* ExpandWidthHeight.metal in Sources */,
 				B4D8A4362876A13A005E9A37 /* upconv_7_photo_noise0_scale2.mlpackage in Sources */,
+				B4CFCD592885A0A30065B67C /* work.swift in Sources */,
 				B4953B032822478D003F7257 /* ProcessingView.swift in Sources */,
 				B4953AFF28224708003F7257 /* GridView.swift in Sources */,
 				B4B8B8482879FF2000585DA5 /* ProcessConfig.swift in Sources */,
@@ -566,12 +619,15 @@
 				B4D8A4452876A13A005E9A37 /* anime_style_art_rgb_noise1_model.mlpackage in Sources */,
 				B4D8A43B2876A13A005E9A37 /* anime_style_art_noise1_model.mlpackage in Sources */,
 				B4D8A44A2876A13A005E9A37 /* Bicubic.swift in Sources */,
+				B4968CB52885E6330091AF2E /* WorkItemDocument.swift in Sources */,
 				B4D8A4332876A13A005E9A37 /* upconv_7_photo_noise2_scale2.mlpackage in Sources */,
 				B4D8A43D2876A13A005E9A37 /* photo_noise3_model.mlpackage in Sources */,
 				B4D8A44E2876A13A005E9A37 /* Queue.swift in Sources */,
 				B4D8A42C2876A13A005E9A37 /* Process Supports.swift in Sources */,
+				B41BD2972885BA760078EFD6 /* processVideo.swift in Sources */,
 				B4D8A44F2876A13A005E9A37 /* NSImage+Alpha.swift in Sources */,
 				B4D8A4462876A13A005E9A37 /* BackgroundPipeline.swift in Sources */,
+				B48765032892CE06007AEA22 /* DestinationDataProvider.swift in Sources */,
 				B4D8A4402876A13A005E9A37 /* photo_noise0_model.mlpackage in Sources */,
 				B4D8A43C2876A13A005E9A37 /* photo_noise2_model.mlpackage in Sources */,
 				B4D8A4492876A13A005E9A37 /* CGImage+Crop.swift in Sources */,
@@ -587,6 +643,8 @@
 				B4D8A4302876A13A005E9A37 /* upconv_7_anime_style_art_rgb_scale2.mlpackage in Sources */,
 				B4D8A4442876A13A005E9A37 /* anime_style_art_rgb_noise0_model.mlpackage in Sources */,
 				B4D8A42D2876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise3_scale2.mlpackage in Sources */,
+				B4972090287DD3CC0039B9F2 /* StatusObserver.swift in Sources */,
+				B4F0BEB228953DDA004552D8 /* Waifu2xMLOut.metal in Sources */,
 				B4D8A4372876A13A005E9A37 /* ukbench_scale2.mlpackage in Sources */,
 				B4D8A4382876A13A005E9A37 /* anime_style_art_scale2.mlpackage in Sources */,
 				B4D8A43E2876A13A005E9A37 /* photo_noise1_model.mlpackage in Sources */,
@@ -739,7 +797,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 355;
+				CURRENT_PROJECT_VERSION = 375;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"waifuExtension/Preview Content\"";
 				DEVELOPMENT_TEAM = UJK52W4D7G;
@@ -753,7 +811,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = "5.0 Beta 8";
+				MARKETING_VERSION = "5.0 Beta 9";
 				PRODUCT_BUNDLE_IDENTIFIER = com.Vaida.waifuExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -771,7 +829,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 355;
+				CURRENT_PROJECT_VERSION = 375;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"waifuExtension/Preview Content\"";
 				DEVELOPMENT_TEAM = UJK52W4D7G;
@@ -785,7 +843,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = "5.0 Beta 8";
+				MARKETING_VERSION = "5.0 Beta 9";
 				PRODUCT_BUNDLE_IDENTIFIER = com.Vaida.waifuExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

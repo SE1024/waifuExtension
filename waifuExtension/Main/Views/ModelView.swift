@@ -49,8 +49,10 @@ struct Waifu2xModelView: View {
         .onAppear {
             DispatchQueue(label: "background").async {
                 findModelClass()
-                
                 self.scaleLevels = !containVideo ? [1, 2, 4, 8] : [1, 2]
+                if self.containVideo && model.scaleLevel > 2 {
+                    model.scaleLevel = 2
+                }
             }
         }
         .onChange(of: chosenNoiseLevel) { _ in
@@ -156,6 +158,11 @@ struct SpecificationsView: View {
                     }
                     .disabled(anyFrameModelNotInstalled)
                     .foregroundColor(anyFrameModelNotInstalled ? .secondary : .primary)
+                    .onAppear {
+                        if !anyFrameModelNotInstalled {
+                            model.enableFrameInterpolation = false
+                        }
+                    }
                     .help {
                         if anyFrameModelNotInstalled {
                             return "Please install models in Preferences"
@@ -203,7 +210,7 @@ struct SpecificationsView: View {
             HStack {
                 Spacer()
 
-                if model.imageModel == .caffe && model.scaleLevel == 2 && !model.enableFrameInterpolation && self.containVideo {
+                if model.imageModel == .caffe && !model.enableFrameInterpolation && self.containVideo {
                     Toggle(isOn: $model.enableMemoryOnly) {
                         Text("Memory Only")
                             .help("Use this option only if you are certain it is safe to keep all the intermediate images in the memory.")

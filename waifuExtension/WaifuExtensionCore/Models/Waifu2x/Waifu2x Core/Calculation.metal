@@ -8,11 +8,11 @@
 #include <metal_stdlib>
 using namespace metal;
 
-constant int block_size [[function_constant(0)]];
+constant int block_size  [[function_constant(0)]];
 constant int shrink_size [[function_constant(1)]];
-constant int expwidth [[function_constant(2)]];
-constant int expheight [[function_constant(3)]];
-constant int fullLength [[function_constant(4)]];
+constant int expwidth    [[function_constant(2)]];
+constant int expheight   [[function_constant(3)]];
+constant int fullLength  [[function_constant(4)]];
 
 /// This is a Metal Shading Language (MSL) function
 kernel void Calculation(device const float* expanded,

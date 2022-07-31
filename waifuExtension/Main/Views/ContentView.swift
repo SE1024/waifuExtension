@@ -12,28 +12,45 @@ struct ContentView: View {
     
     @State private var isSheetShown: Bool = false
     @State private var isProcessing: Bool = false
+    @State private var isFinished = false
+    @State private var isShowingExportDialog = false
+    @State private var gridNumber = 1.6
     
     @StateObject private var images = MainModel()
     
+    @EnvironmentObject private var destination: DestinationDataProvider
     @EnvironmentObject private var modelDataProvider: ModelDataProvider
     
-    @AppStorage("ContentView.gridNumber") private var gridNumber = 1.6
     @AppStorage("ContentView.aspectRatio") private var aspectRatio = true
+    @AppStorage("defaultOutputPath") private var outputPath: FinderItem = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
     
     var body: some View {
         VStack {
-            if images.items.isEmpty {
-                DropView("Drag files or folder.") { resultItems in
-                    Task {
-                        await self.images.append(from: resultItems)
+            DropView(disabled: destination.isNoneDestination && isFinished, isShowingPrompt: images.items.isEmpty) { item in
+                item.image != nil || item.avAsset?.videoTrack != nil
+            } handler: { items in
+                let newItems = items.compactMap { item in
+                    if item.image != nil {
+                        return WorkItem(at: item, type: .image)
+                    } else if item.avAsset?.videoTrack != nil {
+                        return WorkItem(at: item, type: .video)
+                    } else {
+                        return nil
                     }
                 }
-            } else {
+                images.items.formUnion(newItems)
+            } content: {
                 GeometryReader { geometry in
                     ScrollView {
                         LazyVGrid(columns: Array(repeating: .init(.flexible()), count: Int(8 / gridNumber))) {
                             ForEach(images.items) { item in
-                                GridItemView(item: item, geometry: geometry, images: images)
+                                GridItemView(item: item, geometry: geometry, gridNumber: gridNumber, images: images)
+                                    .onDrag(disabled: !(destination.isNoneDestination && isFinished)) {
+                                        withAnimation {
+                                            images.items.removeAll { $0 == item }
+                                        }
+                                        return item.itemProvider!
+                                    }
                             }
                         }
                         .padding()
@@ -42,27 +59,20 @@ struct ContentView: View {
                 }
             }
         }
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            Task {
-                let items = await [FinderItem](from: providers)
-                await self.images.append(from: items)
-            }
-
-            return true
-        }
         .sheet(isPresented: $isSheetShown) {
             SpecificationsView(containVideo: self.images.items.contains{ $0.type == .video }, isProcessing: $isProcessing, images: images)
                 .frame(width: 600)
         }
         .sheet(isPresented: $isProcessing) {
-            ProcessingView(images: images)
+            ProcessingView(isFinished: $isFinished, images: images)
                 .padding()
-                .frame(width: 600, height: 250)
+                .frame(width: images.items.count > 1 ? 600 : 570, height: 250)
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button("Remove All") {
-                    images.items = []
+                    isFinished = false
+                    images.reset()
                 }
                 .disabled(images.items.isEmpty)
                 .help("Remove all files.")
@@ -99,24 +109,39 @@ struct ContentView: View {
                 .frame(width: 150)
                 .help("Set the size of each thumbnail.")
 
-                Button("Add Item") {
-                    let panel = NSOpenPanel()
-                    panel.allowsMultipleSelection = true
-                    panel.canChooseDirectories = true
-                    if panel.runModal() == .OK {
-                        Task {
-                            await self.images.append(from: panel.urls.map{ FinderItem(at: $0) })
+                if !(isFinished && destination.isNoneDestination) {
+                    Button("Add Item") {
+                        let panel = NSOpenPanel()
+                        panel.allowsMultipleSelection = true
+                        panel.canChooseDirectories = true
+                        if panel.runModal() == .OK {
+                            Task {
+                                await self.images.append(from: panel.urls.map{ FinderItem(at: $0) })
+                            }
                         }
                     }
+                    .help("Add another item.")
+                    
+                    Button("Done") {
+                        isSheetShown = true
+                    }
+                    .disabled(images.items.isEmpty || isSheetShown)
+                    .help("Begin processing.")
+                } else {
+                    Button("Export") {
+                        isShowingExportDialog = true
+                    }
+                    .help("Export finished items")
                 }
-                .help("Add another item.")
-                
-                Button("Done") {
-                    isSheetShown = true
-                }
-                .disabled(images.items.isEmpty || isSheetShown)
-                .help("Begin processing.")
             }
+        }
+        .onChange(of: images.items) { newValue in
+            if newValue.isEmpty {
+                isFinished = false
+            }
+        }
+        .fileExporter(isPresented: $isShowingExportDialog, document: WorkItemDocument(container: images.items), contentType: .folder, defaultFilename: "WaifuExtension Output") { _ in
+            images.reset()
         }
     }
 }

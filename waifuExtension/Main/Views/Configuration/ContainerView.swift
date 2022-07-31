@@ -15,11 +15,11 @@ struct ConfigurationContainerView: View {
         TabView {
             ConfigurationView()
                 .onAppear {
-                    height = 100
+                    height = 210
                 }
                 .tabItem {
-                    Image(systemName: "gear")
-                    Text("Config")
+                    Image(systemName: "arrow.down.doc")
+                    Text("Output")
                         .frame(width: 80)
                 }
             

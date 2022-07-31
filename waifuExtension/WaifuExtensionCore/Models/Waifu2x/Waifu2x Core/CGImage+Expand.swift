@@ -8,6 +8,7 @@
 
 import CoreML
 import Cocoa
+import os
 
 extension CGImage {
     
@@ -15,239 +16,269 @@ extension CGImage {
     /// The model will shrink the input image by 7 px.
     ///
     /// - Returns: Float array of rgb values
-    public func expand(withAlpha: Bool, in waifu2x: Waifu2x) -> [Float] {
+    public func expand(withAlpha: Bool, shrink_size: Int, clip_eta8: Float) -> (array: UnsafeMutablePointer<Float>, length: Int) {
+        
+        let width = self.width
+        let height = self.height
+        
         let rect = NSRect.init(origin: .zero, size: CGSize(width: width, height: height))
         
+        let date = Date()
         // Redraw image in 32-bit RGBA
         let data = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height * 4)
         data.initialize(repeating: 0, count: width * height * 4)
         defer {
             data.deallocate()
         }
-        let context = CGContext(data: data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 4 * width, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue)
-        context?.draw(self, in: rect)
-        
-        let exwidth = width + 2 * waifu2x.shrink_size
-        let exheight = height + 2 * waifu2x.shrink_size
-        
-        var arr = [Float](repeating: 0, count: 3 * exwidth * exheight)
-        
-        var xx, yy, pixel: Int
-        var r, g, b, a: UInt8
-        var fr, fg, fb: Float
-        // http://www.jianshu.com/p/516f01fed6e4
-        
-        var y1 = 0
-        while y1 < height {
-            var x = 0
-            while x < width {
-                xx = x + waifu2x.shrink_size
-                yy = y1 + waifu2x.shrink_size
-                pixel = (width * y1 + x) * 4
-                r = data[pixel]
-                g = data[pixel + 1]
-                b = data[pixel + 2]
-                // !!! rgb values are from 0 to 1
-                // https://github.com/chungexcy/waifu2x-new/blob/master/image_test.py
-                fr = Float(r) / 255 + waifu2x.clip_eta8
-                fg = Float(g) / 255 + waifu2x.clip_eta8
-                fb = Float(b) / 255 + waifu2x.clip_eta8
-                if withAlpha {
-                    a = data[pixel + 3]
-                    if a > 0 {
-//                        fr *= 255 / Float(a)
-//                        fg *= 255 / Float(a)
-//                        fb *= 255 / Float(a)
-                    }
-                }
-                arr[yy * exwidth + xx] = fr
-                arr[yy * exwidth + xx + exwidth * exheight] = fg
-                arr[yy * exwidth + xx + exwidth * exheight * 2] = fb
-                
-                x += 1
-            }
-            
-            y1 += 1
+        autoreleasepool {
+            let context = CGContext(data: data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 4 * width, space: self.colorSpace ?? CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue)
+            context?.draw(self, in: rect)
         }
         
-        // Top-left corner
-        pixel = 0
-        r = data[pixel]
-        g = data[pixel + 1]
-        b = data[pixel + 2]
-        fr = Float(r) / 255
-        fg = Float(g) / 255
-        fb = Float(b) / 255
+        let exwidth = width + 2 * shrink_size
+        let exheight = height + 2 * shrink_size
         
-        var y2 = 0
-        while y2 < waifu2x.shrink_size {
+        var arr = UnsafeMutablePointer<Float>.allocate(capacity: 3 * exwidth * exheight)
+        Logger().info("To expand image, allocate data array & draw cg context took: \(date.distance(to: Date()).expressedAsTime())")
+        
+        if let device = MTLCreateSystemDefaultDevice(), let library = device.makeDefaultLibrary() {
+            let constants = MTLFunctionConstantValues()
             
-            var x = 0
-            while x < waifu2x.shrink_size {
-                arr[y2 * exwidth + x] = fr
-                arr[y2 * exwidth + x + exwidth * exheight] = fg
-                arr[y2 * exwidth + x + exwidth * exheight * 2] = fb
-                
-                x += 1
+            var shrink_size_pte = shrink_size
+            var clip_eta8_pte = clip_eta8
+            var width_pte = width
+            var exwidth_pte = exwidth
+            var exheight_pte = exheight
+            
+            constants.setConstantValue(&shrink_size_pte, type: MTLDataType.int,   index: 0)
+            constants.setConstantValue(&clip_eta8_pte,   type: MTLDataType.float, index: 1)
+            constants.setConstantValue(&width_pte,       type: MTLDataType.int,   index: 2)
+            constants.setConstantValue(&exwidth_pte,     type: MTLDataType.int,   index: 3)
+            constants.setConstantValue(&exheight_pte,    type: MTLDataType.int,   index: 4)
+            
+            // Call the metal function. The name is the function name.
+            let metalFunction = try! library.makeFunction(name: "ExpandWidthHeight", constantValues: constants)
+            // creates the pipe would stores the calculation
+            let pipelineState = try! device.makeComputePipelineState(function: metalFunction)
+            
+            // generate the buffers where the argument is stored in memory.
+            let commandQueue = device.makeCommandQueue()!
+            let commandBuffer = commandQueue.makeCommandBuffer()!
+            let commandEncoder = commandBuffer.makeComputeCommandEncoder()!
+            
+            // pass the input array. Be really careful with the length, otherwise memory error would occur.
+            let inputArrayBuffer = device.makeBuffer(bytes: data, length: width * height * 4 * MemoryLayout<UInt8>.size, options: .storageModeShared)!
+            // generate the buffer for output array. Also be careful with length.
+            let resultArrayBuffer = device.makeBuffer(length: width * height * 4 * MemoryLayout<Float>.size, options: .storageModeShared)!
+            
+            // pass in the buffers. The indexes need to be the same as defined in .metal file
+            commandEncoder.setComputePipelineState(pipelineState)
+            commandEncoder.setBuffer(inputArrayBuffer, offset: 0, index: 0)
+            commandEncoder.setBuffer(resultArrayBuffer, offset: 0, index: 1)
+            
+            // The size of the `thread_position_in_grid` in .metal. the three arguments represent the x, y, z dimensions.
+            let gridSize = MTLSizeMake(width, height, 1)
+            
+            // Defines the size which can calculate concurrently. the three arguments represent the x, y, z dimensions.
+            let w = pipelineState.threadExecutionWidth
+            let h = pipelineState.maxTotalThreadsPerThreadgroup / w
+            let threadsPerThreadGroup = MTLSizeMake(w, h, 1)
+            commandEncoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerThreadGroup)
+            
+            // Run the metal.
+            commandEncoder.endEncoding()
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+            
+            // obtain the results. Now, the results are only just raw pointers.
+            let rawPointer = resultArrayBuffer.contents()
+            
+            arr = rawPointer.bindMemory(to: Float.self, capacity: width * height * 4)
+            
+        } else {
+            DispatchQueue.concurrentPerform(iterations: height) { y in
+                DispatchQueue.concurrentPerform(iterations: width) { x in
+                    let xx = x + shrink_size
+                    let yy = y + shrink_size
+                    let pixel = (width * y + x) * 4
+                    let r = data[pixel]
+                    let g = data[pixel + 1]
+                    let b = data[pixel + 2]
+                    
+                    // !!! rgb values are from 0 to 1
+                    // https://github.com/chungexcy/waifu2x-new/blob/master/image_test.py
+                    let fr = Float(r) / 255 + clip_eta8
+                    let fg = Float(g) / 255 + clip_eta8
+                    let fb = Float(b) / 255 + clip_eta8
+                    
+                    arr[yy * exwidth + xx] = fr
+                    arr[yy * exwidth + xx + exwidth * exheight] = fg
+                    arr[yy * exwidth + xx + exwidth * exheight * 2] = fb
+                }
             }
+        }
+        
+        
+        // Top-left corner
+        for _ in 0...0 {
+            let pixel = 0
+            let r = data[pixel]
+            let g = data[pixel + 1]
+            let b = data[pixel + 2]
+            let fr = Float(r) / 255
+            let fg = Float(g) / 255
+            let fb = Float(b) / 255
             
-            y2 += 1
+            DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    arr[y * exwidth + x] = fr
+                    arr[y * exwidth + x + exwidth * exheight] = fg
+                    arr[y * exwidth + x + exwidth * exheight * 2] = fb
+                }
+            }
         }
         
         // Top-right corner
-        pixel = (width - 1) * 4
-        r = data[pixel]
-        g = data[pixel + 1]
-        b = data[pixel + 2]
-        fr = Float(r) / 255
-        fg = Float(g) / 255
-        fb = Float(b) / 255
-        
-        var y3 = 0
-        while y3 < waifu2x.shrink_size {
-            var x = width+waifu2x.shrink_size
+        for _ in 0...0 {
+            let pixel = (width - 1) * 4
+            let r = data[pixel]
+            let g = data[pixel + 1]
+            let b = data[pixel + 2]
+            let fr = Float(r) / 255
+            let fg = Float(g) / 255
+            let fb = Float(b) / 255
             
-            while x < width+2*waifu2x.shrink_size {
-                arr[y3 * exwidth + x] = fr
-                arr[y3 * exwidth + x + exwidth * exheight] = fg
-                arr[y3 * exwidth + x + exwidth * exheight * 2] = fb
-                
-                x += 1
+            DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    let x = width + shrink_size + x
+                    arr[y * exwidth + x] = fr
+                    arr[y * exwidth + x + exwidth * exheight] = fg
+                    arr[y * exwidth + x + exwidth * exheight * 2] = fb
+                }
             }
-            
-            y3 += 1
         }
         
         // Bottom-left corner
-        pixel = (width * (height - 1)) * 4
-        r = data[pixel]
-        g = data[pixel + 1]
-        b = data[pixel + 2]
-        fr = Float(r) / 255
-        fg = Float(g) / 255
-        fb = Float(b) / 255
-        
-        var y4 = height+waifu2x.shrink_size
-        while y4 < height+2*waifu2x.shrink_size {
+        for _ in 0...0 {
+            let pixel = (width * (height - 1)) * 4
+            let r = data[pixel]
+            let g = data[pixel + 1]
+            let b = data[pixel + 2]
+            let fr = Float(r) / 255
+            let fg = Float(g) / 255
+            let fb = Float(b) / 255
             
-            var x = 0
-            while x < waifu2x.shrink_size {
-                arr[y4 * exwidth + x] = fr
-                arr[y4 * exwidth + x + exwidth * exheight] = fg
-                arr[y4 * exwidth + x + exwidth * exheight * 2] = fb
-                
-                x += 1
+            DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                let y = y + height+shrink_size
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    arr[y * exwidth + x] = fr
+                    arr[y * exwidth + x + exwidth * exheight] = fg
+                    arr[y * exwidth + x + exwidth * exheight * 2] = fb
+                }
             }
-            
-            y4 += 1
         }
         
         // Bottom-right corner
-        pixel = (width * (height - 1) + (width - 1)) * 4
-        r = data[pixel]
-        g = data[pixel + 1]
-        b = data[pixel + 2]
-        fr = Float(r) / 255
-        fg = Float(g) / 255
-        fb = Float(b) / 255
-        
-        var y5 = height+waifu2x.shrink_size
-        while y5 < height+2*waifu2x.shrink_size {
-            var x = width+waifu2x.shrink_size
-            while x < width+2*waifu2x.shrink_size {
-                arr[y5 * exwidth + x] = fr
-                arr[y5 * exwidth + x + exwidth * exheight] = fg
-                arr[y5 * exwidth + x + exwidth * exheight * 2] = fb
-                
-                x += 1
-            }
+        for _ in 0...0 {
+            let pixel = (width * (height - 1) + (width - 1)) * 4
+            let r = data[pixel]
+            let g = data[pixel + 1]
+            let b = data[pixel + 2]
+            let fr = Float(r) / 255
+            let fg = Float(g) / 255
+            let fb = Float(b) / 255
             
-            y5 += 1
+            DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                let y = y +  height+shrink_size
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    let x = x + width+shrink_size
+                    
+                    arr[y * exwidth + x] = fr
+                    arr[y * exwidth + x + exwidth * exheight] = fg
+                    arr[y * exwidth + x + exwidth * exheight * 2] = fb
+                }
+            }
         }
         
         // Top & bottom bar
-        var x = 0
-        while x < width {
-            pixel = x * 4
-            r = data[pixel]
-            g = data[pixel + 1]
-            b = data[pixel + 2]
-            fr = Float(r) / 255
-            fg = Float(g) / 255
-            fb = Float(b) / 255
-            xx = x + waifu2x.shrink_size
-            var y6 = 0
-            while y6 < waifu2x.shrink_size {
-                arr[y6 * exwidth + xx] = fr
-                arr[y6 * exwidth + xx + exwidth * exheight] = fg
-                arr[y6 * exwidth + xx + exwidth * exheight * 2] = fb
+        DispatchQueue.concurrentPerform(iterations: width) { x in
+            for _ in 0...0 {
+                let pixel = x * 4
+                let r = data[pixel]
+                let g = data[pixel + 1]
+                let b = data[pixel + 2]
+                let fr = Float(r) / 255
+                let fg = Float(g) / 255
+                let fb = Float(b) / 255
+                let xx = x + shrink_size
                 
-                y6 += 1
-            }
-            pixel = (width * (height - 1) + x) * 4
-            r = data[pixel]
-            g = data[pixel + 1]
-            b = data[pixel + 2]
-            fr = Float(r) / 255
-            fg = Float(g) / 255
-            fb = Float(b) / 255
-            xx = x + waifu2x.shrink_size
-            
-            var y7 = height+waifu2x.shrink_size
-            while y7 < height+2*waifu2x.shrink_size {
-                arr[y7 * exwidth + xx] = fr
-                arr[y7 * exwidth + xx + exwidth * exheight] = fg
-                arr[y7 * exwidth + xx + exwidth * exheight * 2] = fb
-                
-                y7 += 1
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                    arr[y * exwidth + xx] = fr
+                    arr[y * exwidth + xx + exwidth * exheight] = fg
+                    arr[y * exwidth + xx + exwidth * exheight * 2] = fb
+                }
             }
             
-            x += 1
+            for _ in 0...0 {
+                let pixel = (width * (height - 1) + x) * 4
+                let r = data[pixel]
+                let g = data[pixel + 1]
+                let b = data[pixel + 2]
+                let fr = Float(r) / 255
+                let fg = Float(g) / 255
+                let fb = Float(b) / 255
+                let xx = x + shrink_size
+                
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { y in
+                    let y = y + height+shrink_size
+                    
+                    arr[y * exwidth + xx] = fr
+                    arr[y * exwidth + xx + exwidth * exheight] = fg
+                    arr[y * exwidth + xx + exwidth * exheight * 2] = fb
+                }
+            }
         }
         
         // Left & right bar
-        var y8 = 0
-        while y8 < height {
-            pixel = (width * y8) * 4
-            r = data[pixel]
-            g = data[pixel + 1]
-            b = data[pixel + 2]
-            fr = Float(r) / 255
-            fg = Float(g) / 255
-            fb = Float(b) / 255
-            yy = y8 + waifu2x.shrink_size
-            
-            var x1 = 0
-            while x1 < waifu2x.shrink_size {
-                arr[yy * exwidth + x1] = fr
-                arr[yy * exwidth + x1 + exwidth * exheight] = fg
-                arr[yy * exwidth + x1 + exwidth * exheight * 2] = fb
+        DispatchQueue.concurrentPerform(iterations: height) { y in
+            for _ in 0...0 {
+                let pixel = (width * y) * 4
+                let r = data[pixel]
+                let g = data[pixel + 1]
+                let b = data[pixel + 2]
+                let fr = Float(r) / 255
+                let fg = Float(g) / 255
+                let fb = Float(b) / 255
+                let yy = y + shrink_size
                 
-                x1 += 1
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    arr[yy * exwidth + x] = fr
+                    arr[yy * exwidth + x + exwidth * exheight] = fg
+                    arr[yy * exwidth + x + exwidth * exheight * 2] = fb
+                }
             }
             
-            pixel = (width * y8 + (width - 1)) * 4
-            r = data[pixel]
-            g = data[pixel + 1]
-            b = data[pixel + 2]
-            fr = Float(r) / 255
-            fg = Float(g) / 255
-            fb = Float(b) / 255
-            yy = y8 + waifu2x.shrink_size
-            
-            var x = width+waifu2x.shrink_size
-            while x < width+2*waifu2x.shrink_size {
-                arr[yy * exwidth + x] = fr
-                arr[yy * exwidth + x + exwidth * exheight] = fg
-                arr[yy * exwidth + x + exwidth * exheight * 2] = fb
+            for _ in 0...0 {
+                let pixel = (width * y + (width - 1)) * 4
+                let r = data[pixel]
+                let g = data[pixel + 1]
+                let b = data[pixel + 2]
+                let fr = Float(r) / 255
+                let fg = Float(g) / 255
+                let fb = Float(b) / 255
+                let yy = y + shrink_size
                 
-                x += 1
+                DispatchQueue.concurrentPerform(iterations: shrink_size) { x in
+                    let x = x + width+shrink_size
+                    
+                    arr[yy * exwidth + x] = fr
+                    arr[yy * exwidth + x + exwidth * exheight] = fg
+                    arr[yy * exwidth + x + exwidth * exheight * 2] = fb
+                }
             }
-            
-            y8 += 1
         }
         
-        return arr
+        return (arr, 3 * exwidth * exheight)
     }
     
 }

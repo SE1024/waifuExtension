@@ -10,6 +10,7 @@
 "Done" = "完成";
 "Cancel" = "取消";
 "Show in Finder" = "在Finder中显示";
+"Remove" = "去除";
 "Completed" = "完成";
 "Pause" = "暂停";
 
@@ -17,7 +18,7 @@
 "false" = "否";
 
 // ContentView
-"Drag files or folder." = "放入文件或文件夹";
+"Drop files or folder." = "放入文件或文件夹";
 "Cannot read this file" = "无法读取此文件";
 "Remove All" = "去除所有图片";
 "Remove all files." = "去除所有文件。";
@@ -27,6 +28,8 @@
 "Add Item" = "添加";
 "Add another item." = "添加另一个项目";
 "Begin processing." = "开始处理";
+"Export" = "导出";
+"Export finished items" = "导出已完成文件";
 
 
 // ModelView
@@ -35,14 +38,14 @@
 "none" = "无";
 "Style:" = "样式";
 "anime: for illustrations or 2D images or CG\nphoto: for photos of real world or 3D images" = "动画: 画作或2D图片/CG\n照片: 现实照片或3D图片";
-"Scale Level" = "放大倍数";
+"Scale Level:" = "放大倍数";
 "Choose how much you want to scale." = "放大的倍数";
 "Denoise Level:" = "降噪参数";
 "denoise level 3 recommended." = "建议三倍降噪";
 
 "Image Model:" = "处理照片的模型";
 "Model Name:" = "模型名称";
-"Enable TTA:" = "开启TTA";
+"Disable TTA" = "禁用TTA";
 "In TTA mode, it takes 8 times of time to improve the image quality that is difficult to be detected by naked eye." = "在开启TTA后，软件会用更长的时间处理以增加画质。此效果不明显。";
 "Enable video frame interpolation" = "开启视频补帧";
 "Interpolation Model:" = "处理补帧的模型";
@@ -110,9 +113,13 @@
 "Models" = "模型";
 
 // ConfigurationView
-"Save Folder" = "保存的文件夹";
-"Downloads/Waifu Output" = "下载/Waifu Output";
+"Destination" = "保存的文件夹";
+"Waifu Output" = "Waifu 输出";
+"Downloads/Waifu Output" = "下载/Waifu 输出";
 "Other..." = "其他...";
+"The folder where the generated images are stored." = "输出图片所被保存的文件夹";
+"None" = "不指定";
+"Instead of putting into a folder, drag them somewhere" = "不将文件放入特定文件夹，而是将其拖拽至其他地方";
 "Please choose a folder." = "请选择一个文件夹";
 "Show Container" = "现实Container";
 "Cache: %@" = "缓存: %@";

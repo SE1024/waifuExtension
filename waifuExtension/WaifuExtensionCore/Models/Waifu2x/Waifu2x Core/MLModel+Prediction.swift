@@ -41,6 +41,7 @@ extension MLModel {
         let input_ = Waifu2xInput(input)
         let outFeatures = try self.prediction(from: input_)
         let result = outFeatures.featureValue(for: "conv7")!.multiArrayValue!
+//        print(result.shape)
         return result
     }
     
