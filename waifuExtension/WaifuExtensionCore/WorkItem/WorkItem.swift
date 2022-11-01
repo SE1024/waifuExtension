@@ -35,7 +35,6 @@ import Support
     
     public subscript<Subject>(dynamicMember keyPath: WritableKeyPath<FinderItem, Subject>) -> Subject {
         get { finderItem[keyPath: keyPath] }
-        set { finderItem[keyPath: keyPath] = newValue }
     }
     
     public subscript<Subject>(dynamicMember keyPath: KeyPath<FinderItem, Subject>) -> Subject {

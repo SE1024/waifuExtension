@@ -25,11 +25,21 @@ struct ConfigurationContainerView: View {
             
             ProcessingConfigurationView()
                 .onAppear {
-                    height = 280
+                    height = 160
                 }
                 .tabItem {
                     Image(systemName: "photo.fill")
                     Text("Inference")
+                        .frame(width: 80)
+                }
+            
+            VideoConfigView()
+                .onAppear {
+                    height = 280
+                }
+                .tabItem {
+                    Image(systemName: "play.rectangle")
+                    Text("Video")
                         .frame(width: 80)
                 }
             

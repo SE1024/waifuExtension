@@ -36,72 +36,10 @@ func inferenceProgress(_ text: String) -> Double? {
 
 public class ProgressManager: ObservableObject {
     
-    class Image {
-        
-        unowned let manager: ProgressManager
-        
-        /// The progress of the image.
-        var progress: Double = 0 {
-            didSet {
-                manager.onProgressChanged(manager.progress)
-            }
-        }
-        
-        init(manager: ProgressManager) {
-            self.manager = manager
-        }
-        
-    }
-    
-    class Video {
-        
-        unowned let manager: ProgressManager
-        
-        var interpolationProgress: Double = 0 {
-            didSet {
-                manager.onProgressChanged(manager.progress)
-            }
-        }
-        var enlargeProgress: Double = 0 {
-            didSet {
-                manager.onProgressChanged(manager.progress)
-            }
-        }
-        
-        var interpolationLevel: Double = 1
-        var totalFrames: Double = 0
-        
-        var progress: Double {
-            if interpolationLevel == 1 {
-                return enlargeProgress
-            } else {
-                return interpolationProgress / 2 + enlargeProgress / 2
-            }
-        }
-        
-        func updateInterpolation() {
-            interpolationProgress += 1 / totalFrames
-        }
-        
-        func updateEnlarge() {
-            enlargeProgress += 1 / (totalFrames * interpolationLevel)
-        }
-        
-        init(manager: ProgressManager) {
-            self.manager = manager
-        }
-    }
-    
-    @Published var videos: [WorkItem: Video] = [:]
-    @Published var images: [WorkItem: Image] = [:]
-    
-    var progress: Double {
-        (images.values.reduce(0) {$0 + $1.progress} + videos.values.reduce(0.0) { $0 + $1.progress * $1.totalFrames * $1.interpolationLevel }) / (Double(images.values.count) + videos.values.reduce(0.0) { $0 + $1.totalFrames * $1.interpolationLevel })
-    }
+    @Published var progress = Progress(totalUnitCount: 1)
     
     public var status: (_ status: LocalizedStringKey) -> Void = { _ in }
     public var onStatusProgressChanged: (_ progress: Int?, _ total: Int?) -> Void = { _, _ in }
-    public var onProgressChanged: (_ progress: Double) -> Void = { _ in }
     public var addCurrentItems: (_ item: WorkItem) -> Void = { _ in }
     public var removeFromCurrentItems: (_ item: WorkItem) -> Void = { _ in }
     
@@ -121,236 +59,6 @@ extension Array where Element == WorkItem {
 
 
 extension FinderItem {
-    
-    /// Merges video and sound while keeping sound of the video too
-    ///
-    /// - Parameters:
-    ///   - videoUrl: URL to video file
-    ///   - audioUrl: URL to audio file
-    ///   - completion: completion of saving: error or url with final video
-    ///
-    /// from [stackoverflow](https://stackoverflow.com/questions/31984474/swift-merge-audio-and-video-files-into-one-video)
-    static func mergeVideoWithAudio(videoUrl: URL, audioUrl: URL) async {
-        
-        guard FileManager.default.fileExists(atPath: audioUrl.path) else {
-            let logger = Logger()
-            logger.error("merge video with audio failed: no audio file found")
-            return
-        }
-        
-        let destinationDataProvider = DestinationDataProvider.main
-        
-        let mixComposition: AVMutableComposition = AVMutableComposition()
-        var mutableCompositionVideoTrack: [AVMutableCompositionTrack] = []
-        var mutableCompositionAudioTrack: [AVMutableCompositionTrack] = []
-        let totalVideoCompositionInstruction : AVMutableVideoCompositionInstruction = AVMutableVideoCompositionInstruction()
-        
-        let aVideoAsset: AVAsset = AVAsset(url: videoUrl)
-        let aAudioAsset: AVAsset = AVAsset(url: audioUrl)
-        let logger = Logger()
-        
-        if let videoTrack = mixComposition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid), let audioTrack = mixComposition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-            mutableCompositionVideoTrack.append(videoTrack)
-            mutableCompositionAudioTrack.append(audioTrack)
-            
-            if let aVideoAssetTrack: AVAssetTrack = aVideoAsset.tracks(withMediaType: .video).first, let aAudioAssetTrack: AVAssetTrack = aAudioAsset.tracks(withMediaType: .audio).first {
-                do {
-                    try mutableCompositionVideoTrack.first?.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: aVideoAssetTrack.timeRange.duration), of: aVideoAssetTrack, at: CMTime.zero)
-                    try mutableCompositionAudioTrack.first?.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: aAudioAssetTrack.timeRange.duration), of: aAudioAssetTrack, at: CMTime.zero)
-                    videoTrack.preferredTransform = aVideoAssetTrack.preferredTransform
-                    
-                } catch{
-                    Logger().error("failed to add audio track and video track: \(error.localizedDescription)")
-                }
-                
-                let destination = FinderItem(at: videoUrl)
-                if destination.isExistence {
-                    destination.removeFile()
-                }
-                
-                totalVideoCompositionInstruction.timeRange = CMTimeRangeMake(start: CMTime.zero,duration: aVideoAssetTrack.timeRange.duration)
-            } else {
-                logger.error("Failed to load audio track or video track")
-            }
-        } else {
-            logger.error("Failed to add tracks to the composition")
-        }
-        
-        let mutableVideoComposition: AVMutableVideoComposition = AVMutableVideoComposition()
-        let frame = Fraction(aVideoAsset.tracks(withMediaType: .video).first!.nominalFrameRate)
-        mutableVideoComposition.frameDuration = CMTimeMake(value: Int64(frame.denominator), timescale: Int32(frame.numerator))
-        mutableVideoComposition.renderSize = aVideoAsset.tracks(withMediaType: .video).first!.naturalSize
-        
-        if let exportSession = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetPassthrough) {
-            exportSession.outputURL = videoUrl
-            exportSession.outputFileType = destinationDataProvider.videoContainer.avFileType
-            exportSession.shouldOptimizeForNetworkUse = true
-            
-            await exportSession.export()
-            
-            logger.info("merge video and audio finished")
-        } else {
-            logger.error("failed to merge video and audio: filed by create export session")
-        }
-        
-    }
-    
-    /// Convert image sequence to video.
-    ///
-    /// from [stackoverflow](https://stackoverflow.com/questions/3741323/how-do-i-export-uiimage-array-as-a-movie/3742212#36297656)
-    static func convertImageSequenceToVideo<T>(_ allImages: [T], videoPath: String, videoSize: CGSize, videoFPS: Float, colorSpace: CGColorSpace? = nil) async where T: FinderItemOrImage {
-        
-        let logger = Logger()
-        logger.info("Generate Video to \(videoPath) from images at fps of \(videoFPS)")
-        FinderItem(at: videoPath).generateDirectory()
-        
-        let destinationDataProvider = DestinationDataProvider.main
-        
-        // Create AVAssetWriter to write video
-        let finderItemAtVideoPath = FinderItem(at: videoPath)
-        if finderItemAtVideoPath.isExistence {
-            finderItemAtVideoPath.removeFile()
-        }
-        
-        // Convert <path> to NSURL object
-        let pathURL = URL(fileURLWithPath: videoPath)
-        
-        let assetWriter: AVAssetWriter
-        
-        // Return new asset writer or nil
-        do {
-            // Create asset writer
-            assetWriter = try AVAssetWriter(outputURL: pathURL, fileType: destinationDataProvider.videoContainer.avFileType)
-            
-            // Define settings for video input
-            let videoSettings: [String : AnyObject] = [
-                AVVideoCodecKey  : destinationDataProvider.videoCodec.avVideoCodecType as AnyObject,
-                AVVideoWidthKey  : videoSize.width as AnyObject,
-                AVVideoHeightKey : videoSize.height as AnyObject,
-            ]
-            
-            // Add video input to writer
-            let assetWriterVideoInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: videoSettings)
-            assetWriter.add(assetWriterVideoInput)
-            
-            // Return writer
-            logger.info("Created asset writer for \(videoSize.width)x\(videoSize.height) video")
-        } catch {
-            logger.error("Error creating asset writer: \(error.localizedDescription)")
-            return
-        }
-        
-        // If here, AVAssetWriter exists so create AVAssetWriterInputPixelBufferAdaptor
-        let writerInput = assetWriter.inputs.filter{ $0.mediaType == AVMediaType.video }.first!
-        let sourceBufferAttributes : [String : AnyObject] = [
-            kCVPixelBufferPixelFormatTypeKey as String : Int(kCVPixelFormatType_32ARGB) as AnyObject,
-            kCVPixelBufferWidthKey as String : videoSize.width as AnyObject,
-            kCVPixelBufferHeightKey as String : videoSize.height as AnyObject,
-        ]
-        let pixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: writerInput, sourcePixelBufferAttributes: sourceBufferAttributes)
-        
-        // Start writing session
-        assetWriter.startWriting()
-        assetWriter.startSession(atSourceTime: CMTime.zero)
-        if (pixelBufferAdaptor.pixelBufferPool == nil) {
-            logger.error("Error converting images to video: pixelBufferPool nil after starting session")
-            return
-        }
-        
-        // -- Create queue for <requestMediaDataWhenReadyOnQueue>
-        let mediaQueue = DispatchQueue(label: "mediaInputQueue", attributes: [])
-        
-        // -- Set video parameters
-        let frameRate = Fraction(videoFPS)
-        let frameDuration = CMTimeMake(value: Int64(frameRate.denominator), timescale: Int32(frameRate.numerator))
-        var frameCount = 0
-        
-        // -- Add images to video
-        let numImages = allImages.count
-        await withCheckedContinuation{ continuation in
-            writerInput.requestMediaDataWhenReady(on: mediaQueue, using: {
-                // Append unadded images to video but only while input ready
-                while (writerInput.isReadyForMoreMediaData && frameCount < numImages) {
-                    let lastFrameTime = CMTimeMake(value: Int64(frameCount) * Int64(frameRate.denominator), timescale: Int32(frameRate.numerator))
-                    let presentationTime = frameCount == 0 ? lastFrameTime : CMTimeAdd(lastFrameTime, frameDuration)
-                    
-                    autoreleasepool {
-                        if  let pixelBufferPool = pixelBufferAdaptor.pixelBufferPool {
-                            let pixelBufferPointer = UnsafeMutablePointer<CVPixelBuffer?>.allocate(capacity:1)
-                            let status: CVReturn = CVPixelBufferPoolCreatePixelBuffer(
-                                kCFAllocatorDefault,
-                                pixelBufferPool,
-                                pixelBufferPointer
-                            )
-                            
-                            if let pixelBuffer = pixelBufferPointer.pointee , status == 0 {
-                                
-                                autoreleasepool {
-                                    CVPixelBufferLockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: CVOptionFlags(0)))
-                                    
-                                    let pixelData = CVPixelBufferGetBaseAddress(pixelBuffer)
-                                    let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-                                    
-                                    // Create CGBitmapContext
-                                    let context = CGContext(
-                                        data: pixelData,
-                                        width: Int(videoSize.width),
-                                        height: Int(videoSize.height),
-                                        bitsPerComponent: 8,
-                                        bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
-                                        space: colorSpace ?? rgbColorSpace,
-                                        bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
-                                    )!
-                                    
-                                    // Draw image into context
-                                    let drawCGRect = CGRect(x: 0, y: 0, width: videoSize.width, height: videoSize.height)
-                                    var drawRect = NSRectFromCGRect(drawCGRect);
-                                    var cgImage = allImages[frameCount].imagE.cgImage(forProposedRect: &drawRect, context: nil, hints: nil)!
-                                    
-                                    if colorSpace != nil && colorSpace! != cgImage.colorSpace {
-                                        cgImage = cgImage.copy(colorSpace: colorSpace!)!
-                                    }
-                                    
-                                    context.draw(cgImage, in: CGRect(x: 0.0,y: 0.0, width: videoSize.width,height: videoSize.height))
-                                    
-                                    CVPixelBufferUnlockBaseAddress(pixelBuffer, CVPixelBufferLockFlags(rawValue: CVOptionFlags(0)))
-                                }
-                                guard pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
-                                    logger.error("Error converting images to video: AVAssetWriterInputPixelBufferAdapter failed to append pixel buffer")
-                                    return
-                                }
-                                pixelBufferPointer.deinitialize(count: 1)
-                            } else {
-                                logger.error("Error: Failed to allocate pixel buffer from pool")
-                            }
-                            
-                            pixelBufferPointer.deallocate()
-                        }
-                    }
-                    
-                    frameCount += 1
-                }
-                
-                // No more images to add? End video.
-                if (frameCount >= numImages) {
-                    writerInput.markAsFinished()
-                    continuation.resume()
-                }
-            })
-        }
-        
-        mediaQueue.sync {
-            logger.info("finished adding frames")
-        }
-        
-        await assetWriter.finishWriting()
-        
-        if (assetWriter.error != nil) {
-            logger.error("Error converting images to video: \(assetWriter.error.debugDescription)")
-        } else {
-            logger.info("Converted images to movie @ \(videoPath)")
-        }
-    }
     
     static func trimVideo(sourceURL: URL, outputURL: URL, startTime: Double, endTime: Double) async {
         let asset = AVAsset(url: sourceURL as URL)
@@ -396,7 +104,7 @@ extension FinderItem {
             var index = 0
             while index < arrayVideos.count {
                 autoreleasepool {
-                    let videoAsset = arrayVideos[index].avAsset!
+                    guard let videoAsset = AVAsset(at: arrayVideos[index]) else { return }
                     
                     let videoTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: kCMPersistentTrackID_Invalid)
                     do {
@@ -470,29 +178,12 @@ extension FinderItem {
                 await mergingVideos(from: Array(arrayVideos[(index * Int(threshold))..<upperBound]), toPath: tempFolder + "/" + sequence + ".m4v")
                 finishedCounter += 1
                 guard finishedCounter == Int((Double(arrayVideos.count) / threshold).rounded(.up)) else { return }
-                await mergingVideos(from: FinderItem(at: tempFolder).children()!, toPath: toPath)
+                await mergingVideos(from: FinderItem(at: tempFolder).children(range: .contentsOfDirectory)!, toPath: toPath)
                 
                 index += 1
             }
         } else {
             await mergingVideos(from: arrayVideos, toPath: toPath)
         }
-    }
-}
-
-
-protocol FinderItemOrImage {
-    var imagE: NSImage { get }
-}
-
-extension NSImage: FinderItemOrImage {
-    var imagE: NSImage {
-        self
-    }
-}
-
-extension FinderItem: FinderItemOrImage {
-    var imagE: NSImage {
-        self.image!
     }
 }

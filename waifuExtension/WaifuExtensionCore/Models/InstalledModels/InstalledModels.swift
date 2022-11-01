@@ -33,9 +33,10 @@ public extension InstalledModel {
         return FinderItem(at: "\(rootPath)/\(self.rawName)")
     }
     
-    static func preProsess(input: FinderItem) {
+    /// Changes the file name to something the exe can read
+    static func preProsess(input: inout FinderItem) {
         var isReadable: Bool {
-            guard input.isFile else { return true }
+            guard input.isFile! else { return true }
             
             if let type = input.contentType, [.png, .jpeg, .tiff].contains(type) {
                 return true
@@ -48,8 +49,8 @@ public extension InstalledModel {
         
         if !isReadable {
             let destination = FinderItem.temporaryDirectory.with(subPath: "\(input.fileName).png")
-            destination.data = input.image?.data(with: .png)
-            input.path = destination.path
+            try! input.image?.data(using: .png)?.write(to: destination)
+            input = destination
         }
     }
     
@@ -57,7 +58,7 @@ public extension InstalledModel {
 
 public protocol InstalledImageModel: InstalledModel {
     
-    func run(inputItem: FinderItem, outputItem: FinderItem, task: ShellManager)
+    func run(inputItem: inout FinderItem, outputItem: FinderItem, task: ShellManager)
     
 }
 
@@ -91,8 +92,8 @@ public struct Model_CAIN: InstalledFrameModel {
     
     /// Runs the model to achieve an output to `outputItem` from `input1Item` and `input2Item`.
     public func run(input1Item: FinderItem, input2Item: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: input1Item)
-        Self.preProsess(input: input2Item)
+//        Self.preProsess(input: &input1Item)
+//        Self.preProsess(input: &input2Item) no pre preprocess
         task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName) -0 \(input1Item.shellPath) -1 \(input2Item.shellPath) -o \(outputItem.shellPath)")
         
     }
@@ -107,8 +108,8 @@ public struct Model_DAIN: InstalledFrameModel {
     
     /// Runs the model to achieve an output to `outputItem` from `input1Item` and `input2Item`.
     public func run(input1Item: FinderItem, input2Item: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: input1Item)
-        Self.preProsess(input: input2Item)
+//        Self.preProsess(input: &input1Item)
+//        Self.preProsess(input: &input2Item)
         task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName) -0 \(input1Item.shellPath) -1 \(input2Item.shellPath) -o \(outputItem.shellPath)")
         
     }
@@ -126,13 +127,13 @@ public struct Model_RIFE: InstalledFrameModel {
         ["rife", "rife-HD", "rife-UHD", "rife-anime", "rife-v2", "rife-v2.3", "rife-v2.4", "rife-v3.0", "rife-v3.1", "rife-v4"]
     }
     
-    public var enableTTA: Bool = true
+    public var enableTTA: Bool = false
     public var enableUHD: Bool = true
     
     /// Runs the model to achieve an output to `outputItem` from `input1Item` and `input2Item`.
     public func run(input1Item: FinderItem, input2Item: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: input1Item)
-        Self.preProsess(input: input2Item)
+//        Self.preProsess(input: &input1Item)
+//        Self.preProsess(input: &input2Item)
         task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName)-0 \(input1Item.shellPath) -1 \(input2Item.shellPath) -o \(outputItem.shellPath) \(self.enableTTA ? "-x" : "") \(self.enableUHD ? "-u" : "")")
         
     }
@@ -145,30 +146,62 @@ public struct Model_RealCUGAN: InstalledImageModel {
     public static var rawName: String { "realcugan-ncnn-vulkan" }
     public static var source: URL { URL(string: "https://github.com/nihui/realcugan-ncnn-vulkan")! }
     
-    public var scaleLevel: Int = 2
+    public var scaleLevel: Int = 2 {
+        didSet {
+            updateWhenRequired(target: &denoiseLevel, options: denoiseLevelOption)
+        }
+    }
     public var scaleLevelOptions: [Int] {
-        [1, 2, 3, 4]
+        if modelName == "models-se" {
+            return [2, 3, 4]
+        } else if modelName == "models-nose" {
+            return [2]
+        } else {
+            return [2, 3]
+        }
     }
     
     public var denoiseLevel: Int = -1
     public var denoiseLevelOption: [Int] {
-        [-1, 0, 1, 2, 3]
+        if modelName == "models-se" {
+            if scaleLevel == 2 {
+                return [-1, 0, 1, 2, 3]
+            } else {
+                return [-1, 0, 3]
+            }
+        } else if modelName == "models-nose" {
+            return [0]
+        } else {
+            return [-1, 0, 3]
+        }
     }
     
-    public var modelName: String = "models-se"
+    public var modelName: String = "models-se" {
+        didSet {
+            updateWhenRequired(target: &scaleLevel, options: scaleLevelOptions)
+            updateWhenRequired(target: &denoiseLevel, options: denoiseLevelOption)
+        }
+    }
+    
     public var modelNameOptions: [String] {
-        ["models-se", "models-nose"]
+        ["models-se", "models-nose", "models-pro"]
     }
     
-    public var enableTTA: Bool = true
+    public var enableTTA: Bool = false
     
     /// Runs the model to achieve an output to `outputItem` from `inputItem`.
-    public func run(inputItem: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: inputItem)
+    public func run(inputItem: inout FinderItem, outputItem: FinderItem, task: ShellManager) {
+        Self.preProsess(input: &inputItem)
         let destinationDataProvider = DestinationDataProvider.main
         let format = destinationDataProvider.imageFormat.installedModelFormat(for: inputItem)
         
         task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName) -i \(inputItem.shellPath) -o \(outputItem.shellPath) -n \(self.denoiseLevel) -s \(self.scaleLevel) -m \(self.modelName) -g \(gpuID) \(self.enableTTA ? "-x" : "") -f \(format)")
+    }
+    
+    private func updateWhenRequired(target: inout Int, options: [Int]) {
+        if !options.contains(target) {
+            target = options.nearestElement(to: target)!
+        }
     }
 }
 
@@ -183,7 +216,7 @@ public struct Model_RealESRGAN: InstalledImageModel {
     public var denoiseLevel: Int = -1
     
     public var scaleLevelOptions: [Int] {
-        [2, 3, 4]
+        [4]
     }
     public var denoiseLevelOption: [Int] {
         [-1]
@@ -194,15 +227,15 @@ public struct Model_RealESRGAN: InstalledImageModel {
         ["realesrgan-x4plus", "realesrgan-x4plus-anime", "realesr-animevideov3-x4"]
     }
     
-    public var enableTTA: Bool = true
+    public var enableTTA: Bool = false
     
     /// Runs the model to achieve an output to `outputItem` from `inputItem`.
-    public func run(inputItem: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: inputItem)
+    public func run(inputItem: inout FinderItem, outputItem: FinderItem, task: ShellManager) {
+        Self.preProsess(input: &inputItem)
         let destinationDataProvider = DestinationDataProvider.main
         let format = destinationDataProvider.imageFormat.installedModelFormat(for: inputItem)
         
-        task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName) -i \(inputItem.shellPath) -o \(outputItem.shellPath) -n \(self.denoiseLevel) -s \(self.scaleLevel) -n \(self.modelName) -g \(gpuID) \(self.enableTTA ? "-x" : "") -f \(format)")
+        task.run(arguments: "cd \(Self.programFolderItem.shellPath); ./\(Self.rawName) -i \(inputItem.shellPath) -o \(outputItem.shellPath) -s \(self.scaleLevel) -n \(self.modelName) -g \(gpuID) \(self.enableTTA ? "-x" : "") -f \(format)")
     }
 }
 
@@ -227,11 +260,11 @@ public struct Model_RealSR: InstalledImageModel {
         ["models-DF2K_JPEG", "models-DF2K"]
     }
     
-    public var enableTTA: Bool = true
+    public var enableTTA: Bool = false
     
     /// Runs the model to achieve an output to `outputItem` from `inputItem`.
-    public func run(inputItem: FinderItem, outputItem: FinderItem, task: ShellManager) {
-        Self.preProsess(input: inputItem)
+    public func run(inputItem: inout FinderItem, outputItem: FinderItem, task: ShellManager) {
+        Self.preProsess(input: &inputItem)
         let destinationDataProvider = DestinationDataProvider.main
         let format = destinationDataProvider.imageFormat.installedModelFormat(for: inputItem)
         

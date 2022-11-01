@@ -16,6 +16,8 @@ struct ProcessingView: View {
     @State private var task = ShellManagers()
     
     @State private var isShowingTimeRemaining = true
+    @State private var estimatedTotalTime = 0.0
+    @State private var mainTask = Task(operation: { })
     
     @Binding var isFinished: Bool
     
@@ -30,7 +32,7 @@ struct ProcessingView: View {
     @Environment(\.locale) private var local
     @Environment(\.dismiss) private var dismiss
     
-    @AppStorage("defaultOutputPath") var outputPath: FinderItem = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
+    @AppStorage("defaultOutputPath") var outputPath: FinderItem = .defaultOutputFolder
     
     
     private var pendingCount: Int {
@@ -40,113 +42,54 @@ struct ProcessingView: View {
     var body: some View {
         VStack {
             
-            VStack(spacing: 10) {
-                Spacer()
-                
-                DoubleView("Status:", text: status.status)
+            HStack {
+                Text(status.status)
                     .lineLimit(1)
-                
-                if let statusProgress = status.statusProgress, !status.isFinished {
-                    DoubleView("Progress:", text: "\(statusProgress.progress) / \(statusProgress.total)")
-                }
-                
-                if images.items.count > 1 {
-                    HStack {
-                        DoubleView("Processed:") {
-                            if status.processedItemsCounter >= 2 {
-                                if pendingCount >= 2 {
-                                    Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) items pending")
-                                } else if pendingCount == 1 {
-                                    Text("\(status.processedItemsCounter.description) items, \(pendingCount.description) item pending")
-                                } else {
-                                    Text("\(status.processedItemsCounter.description) items")
-                                }
-                            } else {
-                                if pendingCount >= 2 {
-                                    Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) items pending")
-                                } else if pendingCount == 1 {
-                                    Text("\(status.processedItemsCounter.description) item, \(pendingCount.description) item pending")
-                                } else {
-                                    Text("\(status.processedItemsCounter.description) item")
-                                }
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.bottom)
-                }
-                
-                Spacer()
-                
-                DoubleView("Time Spent:", text: .init(status.pastTimeTaken.expressedAsTime()))
-                
-                Group {
-                    if isShowingTimeRemaining {
-                        DoubleView("Time Remaining:") {
-                            Text {
-                                guard !status.isFinished else { return "Finished" }
-                                guard status.progress != 0 else { return "Calculating..." }
-                                
-                                var value = status.pastTimeTaken / status.progress
-                                value -= status.pastTimeTaken
-                                
-                                guard value > 0 else { return "Calculating..." }
-                                
-                                return .init(value.expressedAsTime())
-                            }
-                            Spacer()
-                        }
-                    } else {
-                        DoubleView("ETA:") {
-                            Text {
-                                guard !status.isFinished else { return "Finished" }
-                                guard status.progress != 0 else { return "Calculating..." }
-                                
-                                var value = status.pastTimeTaken / status.progress
-                                value -= status.pastTimeTaken
-                                
-                                guard value > 0 else { return "Calculating..." }
-                                
-                                let date = Date().addingTimeInterval(value)
-                                
-                                let formatter = DateFormatter()
-                                if value < 10 * 60 * 60 {
-                                    formatter.dateStyle = .none
-                                } else {
-                                    formatter.dateStyle = .medium
-                                }
-                                formatter.timeStyle = .medium
-                                formatter.locale = self.local
-                                
-                                return .init(formatter.string(from: date))
-                            }
-                            Spacer()
-                        }
-                    }
-                }
-                .onTapGesture {
-                    isShowingTimeRemaining.toggle()
-                }
+                    .font(.title3)
                 
                 Spacer()
             }
             
-            ProgressView(value: {()->Double in
-                guard !images.items.isEmpty else { return 1 }
-                guard !status.isFinished else { return 1 }
-                
-                return status.progress <= 1 ? status.progress : 1
-            }(), total: 1.0)
-            .help("\(String(format: "%.2f", status.progress * 100))%")
-            .padding(.bottom)
+            if images.items.count > 1 {
+                HStack {
+                    if status.processedItemsCounter >= 2 {
+                        if pendingCount >= 2 {
+                            Text("Processed: \(status.processedItemsCounter.description) items, \(pendingCount.description) items pending")
+                        } else if pendingCount == 1 {
+                            Text("Processed: \(status.processedItemsCounter.description) items, \(pendingCount.description) item pending")
+                        } else {
+                            Text("Processed: \(status.processedItemsCounter.description) items")
+                        }
+                    } else {
+                        if pendingCount >= 2 {
+                            Text("Processed: \(status.processedItemsCounter.description) item, \(pendingCount.description) items pending")
+                        } else if pendingCount == 1 {
+                            Text("Processed: \(status.processedItemsCounter.description) item, \(pendingCount.description) item pending")
+                        } else {
+                            Text("Processed: \(status.processedItemsCounter.description) item")
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 5)
+            }
             
-            Spacer()
+            ProgressView(progressManager.progress)
+                .help("\(String(format: "%.2f", status.progress * 100))%")
+                .padding(.vertical)
             
             HStack {
                 if !status.isFinished {
                     Button() {
-                        isShowingQuitConfirmation = true
+                        if images.items.contains(where: { $0.type == .video }) {
+                            isShowingQuitConfirmation = true
+                        } else {
+                            self.mainTask.cancel()
+                            self.task.terminate()
+                            self.progressManager.progress.cancel()
+                            dismiss()
+                        }
                     } label: {
                         Text("Cancel")
                             .frame(width: 80)
@@ -156,7 +99,7 @@ struct ProcessingView: View {
                 
                 Spacer()
                 
-                if status.isFinished && !destination.isNoneDestination {
+                if status.isFinished {
                     Button("Show in Finder") {
                         outputPath.open()
                         images.reset()
@@ -193,12 +136,6 @@ struct ProcessingView: View {
                 }
             }
             
-            progressManager.onProgressChanged = { progress in
-                Task { @MainActor in
-                    self.status.progress = progress
-                }
-            }
-            
             progressManager.addCurrentItems = { item in
                 Task { @MainActor in
                     self.status.currentItems.append(item)
@@ -216,24 +153,30 @@ struct ProcessingView: View {
                 model.caffe.finalizeModel()
             }
             
-            Task.detached {
+            self.mainTask = Task.detached {
                 await images.work(model: model, task: task, manager: progressManager, outputPath: outputPath)
                 Task { @MainActor in
                     isFinished = true
                     status.isFinished = true
-                    if destination.isNoneDestination {
-                        dismiss()
-                    }
+                    
+                    timer.upstream.connect().cancel()
+                    
+                    progressManager.progress.completedUnitCount = progressManager.progress.totalUnitCount
+                    progressManager.progress.setUserInfoObject(nil, forKey: .estimatedTimeRemainingKey)
                 }
             }
             
         }
         .onReceive(timer) { timer in
             status.pastTimeTaken += 1
+            
+            if estimatedTotalTime - status.pastTimeTaken >= 0 {
+                progressManager.progress.setUserInfoObject(estimatedTotalTime - status.pastTimeTaken, forKey: .estimatedTimeRemainingKey)
+            }
         }
-        .onChange(of: status.isFinished) { newValue in
-            if newValue {
-                timer.upstream.connect().cancel()
+        .onChange(of: progressManager.progress.fractionCompleted) { newValue in
+            if newValue > 0 {
+                estimatedTotalTime = status.pastTimeTaken / newValue
             }
         }
         .confirmationDialog("Quit the app?", isPresented: $isShowingQuitConfirmation) {

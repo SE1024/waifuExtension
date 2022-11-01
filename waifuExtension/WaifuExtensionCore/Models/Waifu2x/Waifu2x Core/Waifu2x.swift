@@ -16,7 +16,7 @@ import os
 
 public final class Waifu2x {
     
-    var didFinishedOneBlock: ( _ total: Double) -> Void  = {_ in }
+//    var didFinishedOneBlock: ( _ total: Double) -> Void  = {_ in }
     
     func run(_ image: NativeImage, model: ModelCoordinator) -> NativeImage? {
         guard let cgImage = image.cgImage else { return nil }
@@ -26,11 +26,8 @@ public final class Waifu2x {
     
     func run(_ image: CGImage, model: ModelCoordinator) -> CGImage? {
         
-        let fullDate = Date()
+//        let fullDate = Date()
         let logger = Logger()
-        
-        let device = MTLCreateSystemDefaultDevice()
-        let library = device?.makeDefaultLibrary()
         
         /// The output block size.
         /// It is dependent on the model.
@@ -44,7 +41,7 @@ public final class Waifu2x {
         /// https://github.com/nagadomi/self/commit/797b45ae23665a1c5e3c481c018e48e6f0d0e383
         let clip_eta8 = Float(0.00196)
         
-        var out_scale = model.caffe.scale
+        let out_scale = model.caffe.scale
         var image = image
         
         let width = Int(image.width)
@@ -53,9 +50,9 @@ public final class Waifu2x {
         var fullHeight = height
         let colorSpace = image.colorSpace ?? CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
         
-        BiasRecorder.add(bias: .init(stage: .initial0, time: fullDate.distance(to: Date())))
-        didFinishedOneBlock(68540.22)
-        let initial0Date = Date()
+//        BiasRecorder.add(bias: .init(stage: .initial0, time: fullDate.distance(to: Date())))
+//        didFinishedOneBlock(68540.22)
+//        let initial0Date = Date()
         
         // If image is too small, expand it
         if width < block_size || height < block_size {
@@ -108,15 +105,16 @@ public final class Waifu2x {
             }
         }
         
-        BiasRecorder.add(bias: .init(stage: .initial1, time: initial0Date.distance(to: Date())))
-        didFinishedOneBlock(35.27377)
-        let initial1Date = Date()
+        guard !Task.isCancelled else { return nil }
+//        BiasRecorder.add(bias: .init(stage: .initial1, time: initial0Date.distance(to: Date())))
+//        didFinishedOneBlock(35.27377)
+//        let initial1Date = Date()
         
-        var out_width = width * out_scale
+        let out_width = width * out_scale
         let out_height = height * out_scale
-        var out_fullWidth = fullWidth * out_scale
-        var out_fullHeight = fullHeight * out_scale
-        var out_block_size = block_size * out_scale
+        let out_fullWidth = fullWidth * out_scale
+        let out_fullHeight = fullHeight * out_scale
+        let out_block_size = block_size * out_scale
         let rects = image.getCropRects(block_size: block_size)
         // Prepare for output pipeline
         // Merge arrays into one array
@@ -132,17 +130,17 @@ public final class Waifu2x {
         }
         
         let bufferSize = out_block_size * out_block_size * 3
-        var imgData = UnsafeMutablePointer<UInt8>.allocate(capacity: out_width * out_height * channels)
-        var deallocateImageDataWhenFinishes = true
+        let imgData = UnsafeMutablePointer<UInt8>.allocate(capacity: out_width * out_height * channels)
+//        var deallocateImageDataWhenFinishes = true
         defer {
-            if deallocateImageDataWhenFinishes {
+//            if deallocateImageDataWhenFinishes {
                 imgData.deallocate()
-            }
+//            }
         }
         
-        BiasRecorder.add(bias: .init(stage: .initial2, time: initial1Date.distance(to: Date())))
-        didFinishedOneBlock(156912.95)
-        let initial2Date = Date()
+//        BiasRecorder.add(bias: .init(stage: .initial2, time: initial1Date.distance(to: Date())))
+//        didFinishedOneBlock(156912.95)
+//        let initial2Date = Date()
         
         // Alpha channel support
         // The alpha task starts asyc in the background
@@ -188,72 +186,54 @@ public final class Waifu2x {
             }
         }
         
-        BiasRecorder.add(bias: .init(stage: .initial3, time: initial2Date.distance(to: Date())))
-        didFinishedOneBlock(70890.199)
-        logger.info("initial date: \(fullDate.distance(to: Date()).expressedAsTime())")
+//        BiasRecorder.add(bias: .init(stage: .initial3, time: initial2Date.distance(to: Date())))
+//        didFinishedOneBlock(70890.199)
+//        logger.info("initial date: \(fullDate.distance(to: Date()).expressedAsTime())")
         
         var mlArray: [MLMultiArray] = []
         
         // Start running model
-        let expendImageDate = Date()
+//        let expendImageDate = Date()
         var expwidth = fullWidth + 2 * shrink_size
         var expheight = fullHeight + 2 * shrink_size
         let expanded = image.expand(withAlpha: hasalpha, shrink_size: shrink_size, clip_eta8: clip_eta8)
+        defer { if expanded.requiresDeallocate { expanded.array.deallocate() } }
         
-        BiasRecorder.add(bias: .init(stage: .expend, time: expendImageDate.distance(to: Date())))
-        didFinishedOneBlock(8.742)
-        logger.info("ExpendImage: \(expendImageDate.distance(to: Date()).expressedAsTime())")
+        guard !Task.isCancelled else { return nil }
+//        BiasRecorder.add(bias: .init(stage: .expend, time: expendImageDate.distance(to: Date())))
+//        didFinishedOneBlock(8.742)
+//        logger.info("ExpendImage: \(expendImageDate.distance(to: Date()).expressedAsTime())")
         
-        let in_pipeDate = Date()
+//        let in_pipeDate = Date()
         
-        if let device, let library {
-            // calculation with GPU
+        do {
+            var manager = try MetalManager(name: "Calculation", outputElementType: Float.self)
             
             var arrayLengthFull = 3 * (block_size + 2 * shrink_size) * (block_size + 2 * shrink_size)
             let arrayLength = (block_size + 2 * shrink_size)
             
-            let constants = MTLFunctionConstantValues()
-            constants.setConstantValue(&block_size,      type: MTLDataType.int, index: 0)
-            constants.setConstantValue(&shrink_size,     type: MTLDataType.int, index: 1)
-            constants.setConstantValue(&expwidth,        type: MTLDataType.int, index: 2)
-            constants.setConstantValue(&expheight,       type: MTLDataType.int, index: 3)
-            constants.setConstantValue(&arrayLengthFull, type: MTLDataType.int, index: 4)
+            manager.setConstant(&block_size,      type: .int)
+            manager.setConstant(&shrink_size,     type: .int)
+            manager.setConstant(&expwidth,        type: .int)
+            manager.setConstant(&expheight,       type: .int)
+            manager.setConstant(&arrayLengthFull, type: .int)
             
-            let calculationFunction = try! library.makeFunction(name: "Calculation", constantValues: constants)
-            let pipelineState = try! device.makeComputePipelineState(function: calculationFunction)
-            let commandQueue = device.makeCommandQueue()!
+            try manager.submitConstants()
             
-            let commandBuffer = commandQueue.makeCommandBuffer()!
-            let commandEncoder = commandBuffer.makeComputeCommandEncoder()!
+            manager.setGridSize(width: arrayLength, height: arrayLength, depth: rects.count)
             
-            let expandedBuffer = device.makeBuffer(bytes: expanded.array, length: expanded.length * MemoryLayout<Float>.size, options: .storageModeShared)!
-            let resultBuffer = device.makeBuffer(length: arrayLengthFull * rects.count * MemoryLayout<Float>.size, options: .storageModeShared)!
-            let xArrayBuffer = device.makeBuffer(bytes: rects.map({ Float($0.origin.x) }), length: rects.count * MemoryLayout<Float>.size, options: .storageModeShared)!
-            let yArrayBuffer = device.makeBuffer(bytes: rects.map({ Float($0.origin.y) }), length: rects.count * MemoryLayout<Float>.size, options: .storageModeShared)!
+            try manager.setInputBuffer(expanded.array, length: expanded.length)
+            try manager.setInputBuffer(rects.map { Float($0.origin.x) })
+            try manager.setInputBuffer(rects.map { Float($0.origin.y) })
             
-            commandEncoder.setComputePipelineState(pipelineState)
-            commandEncoder.setBuffer(expandedBuffer, offset: 0, index: 0)
-            commandEncoder.setBuffer(xArrayBuffer, offset: 0, index: 1)
-            commandEncoder.setBuffer(yArrayBuffer, offset: 0, index: 2)
-            commandEncoder.setBuffer(resultBuffer, offset: 0, index: 3)
+            try manager.setOutputBuffer(count: arrayLengthFull * rects.count)
             
-            let gridSize = MTLSizeMake(arrayLength, arrayLength, rects.count)
-            let w = pipelineState.threadExecutionWidth
-            let h = pipelineState.maxTotalThreadsPerThreadgroup / w
-            let threadsPerThreadGroup = MTLSizeMake(w, h, 1)
-            commandEncoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerThreadGroup)
+            try manager.perform()
             
-            commandEncoder.endEncoding()
-            commandBuffer.commit()
-            commandBuffer.waitUntilCompleted()
+            mlArray = manager.getOutputShapedArray(shape: [rects.count, 3, block_size + 2 * shrink_size, block_size + 2 * shrink_size]).map { MLMultiArray($0) }
             
-            let rawPointer = resultBuffer.contents()
-            let shape = [rects.count, 3, Int(block_size + 2 * shrink_size), Int(block_size + 2 * shrink_size)]
-            let shapedArray = MLShapedArray<Float>(bytesNoCopy: rawPointer, shape: shape, deallocator: .none)
-            
-            mlArray = shapedArray.map { MLMultiArray($0) }
-            
-        } else {
+        } catch {
+            print("GPU unavailable")
             // calculate with CPU
             var in_pipeResults: [(index: Int, value: MLMultiArray)] = []
             
@@ -292,117 +272,106 @@ public final class Waifu2x {
             mlArray = in_pipeResults.sorted(by: { $0.index < $1.index }).map({ $0.value })
         }
         
-        BiasRecorder.add(bias: .init(stage: .inPipe, time: in_pipeDate.distance(to: Date())))
-        didFinishedOneBlock(83.626)
-        logger.info("Generate shaped ml array: \(in_pipeDate.distance(to: Date()).expressedAsTime())")
+        guard !Task.isCancelled else { return nil }
+//        BiasRecorder.add(bias: .init(stage: .inPipe, time: in_pipeDate.distance(to: Date())))
+//        didFinishedOneBlock(83.626)
+//        logger.info("Generate shaped ml array: \(in_pipeDate.distance(to: Date()).expressedAsTime())")
         
         // Prepare for model pipeline
         // Run prediction on each block
         
-        let model_pipelineDate = Date()
+//        let model_pipelineDate = Date()
         let mlModel = model.caffe.finalizedModel!
         
-        if let device, let library, channels == 3, false {
-            let shapedArray = MLMultiArray(concatenating: mlArray.map { try! mlModel.prediction(input: $0) }, axis: 0, dataType: .float)
-            
-            logger.info("ML: \(model_pipelineDate.distance(to: Date()).expressedAsTime())")
-            let postMLDate = Date()
-            
-            let constants = MTLFunctionConstantValues()
-            print(shapedArray.shape, rects.count, shapedArray.strides)
-            var rectsCount = rects.count
-            
-            constants.setConstantValue(&out_block_size, type: MTLDataType.int, index: 0)
-            constants.setConstantValue(&out_fullWidth,  type: MTLDataType.int, index: 1)
-            constants.setConstantValue(&out_fullHeight, type: MTLDataType.int, index: 2)
-            constants.setConstantValue(&channels,       type: MTLDataType.int, index: 3)
-            constants.setConstantValue(&out_width,      type: MTLDataType.int, index: 4)
-            constants.setConstantValue(&out_scale,      type: MTLDataType.int, index: 5)
-            constants.setConstantValue(&rectsCount,     type: MTLDataType.int, index: 6)
-
-            // Call the metal function. The name is the function name.
-            let metalFunction = try! library.makeFunction(name: "Waifu2xMLOut", constantValues: constants)
-            // creates the pipe would stores the calculation
-            let pipelineState = try! device.makeComputePipelineState(function: metalFunction)
-
-            // generate the buffers where the argument is stored in memory.
-            let commandQueue = device.makeCommandQueue()!
-            let commandBuffer = commandQueue.makeCommandBuffer()!
-            let commandEncoder = commandBuffer.makeComputeCommandEncoder()!
-
-            // pass the input array. Be really careful with the length, otherwise memory error would occur.
-            let inputArrayBuffer = device.makeBuffer(length: shapedArray.shape.map{ $0 as! Int }.reduce(1, *) * MemoryLayout<Float>.size)!
-            memcpy(inputArrayBuffer.contents(), shapedArray.dataPointer, inputArrayBuffer.length) // it is still wrong if scalers array was passed
-
-            // generate the buffer for output array. Also be careful with length.
-            let resultArrayBuffer = device.makeBuffer(length: out_width * out_height * channels * MemoryLayout<UInt8>.size)!
-            // The noise came from here. use `bytes: &imgData, `.
-
-            var originXArray = rects.map { Int($0.origin.x) }
-            var originYArray = rects.map { Int($0.origin.y) }
-            
-            let originXArrayBuffer = device.makeBuffer(bytes: &originXArray, length: MemoryLayout<Int>.size * rects.count)!
-            let originYArrayBuffer = device.makeBuffer(bytes: &originYArray, length: MemoryLayout<Int>.size * rects.count)!
-
-            // pass in the buffers. The indexes need to be the same as defined in .metal file
-            commandEncoder.setComputePipelineState(pipelineState)
-            commandEncoder.setBuffer(inputArrayBuffer,   offset: 0, index: 0)
-            commandEncoder.setBuffer(originXArrayBuffer, offset: 0, index: 1)
-            commandEncoder.setBuffer(originYArrayBuffer, offset: 0, index: 2)
-            commandEncoder.setBuffer(resultArrayBuffer,  offset: 0, index: 3)
-
-            // The size of the `thread_position_in_grid` in .metal. the three arguments represent the x, y, z dimensions.
-            let gridSize = MTLSizeMake(out_block_size, out_block_size, rectsCount * 2 - 1) // still wrong if `index.z` is 1.
-
-            // Defines the size which can calculate concurrently. the three arguments represent the x, y, z dimensions.
-            let w = pipelineState.threadExecutionWidth
-            let h = pipelineState.maxTotalThreadsPerThreadgroup / w
-            let threadsPerThreadGroup = MTLSizeMake(w, h, 1)
-            commandEncoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerThreadGroup)
-
-            // Run the metal.
-            commandEncoder.endEncoding()
-            commandBuffer.commit()
-            commandBuffer.waitUntilCompleted()
-
-            // obtain the results. Now, the results are only just raw pointers.
-            let rawPointer = resultArrayBuffer.contents()
-            imgData.deallocate()
-            deallocateImageDataWhenFinishes = false
-            imgData = rawPointer.bindMemory(to: UInt8.self, capacity: out_width * out_height * channels)
-            
-            logger.info("post ml Date: \(postMLDate.distance(to: Date()).expressedAsTime())")
-            
-            // fix the error on the first block
-            for _ in 0...0 {
-                DispatchQueue.concurrentPerform(iterations: out_block_size) { dest_x in
-                    DispatchQueue.concurrentPerform(iterations: out_block_size) { dest_y in
-                        if (dest_x >= out_fullWidth || dest_y >= out_fullHeight) { return; }
-
-                        DispatchQueue.concurrentPerform(iterations: 3) { channel in
-                            let src_index = dest_x + dest_y * out_block_size + out_block_size * out_block_size * channel
-                            let dest_index = (dest_x + dest_y * out_width) * channels + channel
-                            let resulT = normalize(Double(shapedArray[src_index] as! Float))
-                            imgData[dest_index] = UInt8(resulT)
-                        }
-                    }
-                }
-            }
-
-            logger.info("post ml Date total: \(postMLDate.distance(to: Date()).expressedAsTime())")
-
-        } else {
-            rects.iterated(isConcurrent: true) { index, rect in
+        let currentProgress = Progress(totalUnitCount: Int64(rects.count))
+        
+//        do {
+//            let shapedArray = MLMultiArray(concatenating: mlArray.map { try! mlModel.prediction(input: $0) }, axis: 0, dataType: .float)
+//
+//            logger.info("ML: \(model_pipelineDate.distance(to: Date()).expressedAsTime())")
+//            let postMLDate = Date()
+//
+//            print(shapedArray.shape, rects.count, shapedArray.strides)
+//            var rectsCount = rects.count
+//
+//            var manager = MetalManager(name: "Waifu2xMLOut")
+//
+//            manager.constants.setConstantValue(&out_block_size, type: MTLDataType.int, index: 0)
+//            manager.constants.setConstantValue(&out_fullWidth,  type: MTLDataType.int, index: 1)
+//            manager.constants.setConstantValue(&out_fullHeight, type: MTLDataType.int, index: 2)
+//            manager.constants.setConstantValue(&channels,       type: MTLDataType.int, index: 3)
+//            manager.constants.setConstantValue(&out_width,      type: MTLDataType.int, index: 4)
+//            manager.constants.setConstantValue(&out_scale,      type: MTLDataType.int, index: 5)
+//            manager.constants.setConstantValue(&rectsCount,     type: MTLDataType.int, index: 6)
+//
+//            // The size of the `thread_position_in_grid` in .metal. the three arguments represent the x, y, z dimensions.
+//            manager.gridSize = MTLSize(width: out_block_size, height: out_block_size, depth: rectsCount * 2 - 1) // still wrong if `index.z` is 1.
+//
+//            let rawPointer = try manager.perform { device, commandEncoder in
+//                // pass the input array. Be really careful with the length, otherwise memory error would occur.
+//                let inputArrayBuffer = device.makeBuffer(length: shapedArray.shape.map{ $0 as! Int }.reduce(1, *) * MemoryLayout<Float>.size)!
+//                memcpy(inputArrayBuffer.contents(), shapedArray.dataPointer, inputArrayBuffer.length) // it is still wrong if scalers array was passed
+//
+//                // generate the buffer for output array. Also be careful with length.
+//                let resultArrayBuffer = device.makeBuffer(length: out_width * out_height * channels * MemoryLayout<UInt8>.size)!
+//                // The noise came from here. use `bytes: &imgData, `.
+//
+//                var originXArray = rects.map { Int($0.origin.x) }
+//                var originYArray = rects.map { Int($0.origin.y) }
+//
+//                let originXArrayBuffer = device.makeBuffer(bytes: &originXArray, length: MemoryLayout<Int>.size * rects.count)!
+//                let originYArrayBuffer = device.makeBuffer(bytes: &originYArray, length: MemoryLayout<Int>.size * rects.count)!
+//
+//                // pass in the buffers. The indexes need to be the same as defined in .metal file
+//                commandEncoder.setBuffer(inputArrayBuffer,   offset: 0, index: 0)
+//                commandEncoder.setBuffer(originXArrayBuffer, offset: 0, index: 1)
+//                commandEncoder.setBuffer(originYArrayBuffer, offset: 0, index: 2)
+//                commandEncoder.setBuffer(resultArrayBuffer,  offset: 0, index: 3)
+//
+//                return resultArrayBuffer
+//            }
+//
+//            // obtain the results. Now, the results are only just raw pointers.
+//            imgData.deallocate()
+//            deallocateImageDataWhenFinishes = false
+//            imgData = rawPointer.bindMemory(to: UInt8.self, capacity: out_width * out_height * channels)
+//
+//            logger.info("post ml Date: \(postMLDate.distance(to: Date()).expressedAsTime())")
+//
+//            // fix the error on the first block
+////            for _ in 0...0 {
+////                DispatchQueue.concurrentPerform(iterations: out_block_size) { dest_x in
+////                    DispatchQueue.concurrentPerform(iterations: out_block_size) { dest_y in
+////                        if (dest_x >= out_fullWidth || dest_y >= out_fullHeight) { return; }
+////
+////                        DispatchQueue.concurrentPerform(iterations: 3) { channel in
+////                            let src_index = dest_x + dest_y * out_block_size + out_block_size * out_block_size * channel
+////                            let dest_index = (dest_x + dest_y * out_width) * channels + channel
+////                            let resulT = normalize(Double(shapedArray[src_index] as! Float))
+////                            imgData[dest_index] = UInt8(resulT)
+////                        }
+////                    }
+////                }
+////            }
+//
+//            logger.info("post ml Date total: \(postMLDate.distance(to: Date()).expressedAsTime())")
+//
+//        } catch {
+            rects.concurrentEnumerate { index, rect in
+//                print(Task.isCancelled)
+                guard !Task.isCancelled else { return }
+                guard !currentProgress.isCancelled else { return }
+                
                 autoreleasepool {
                     let array = mlArray[index]
-
+                    
                     let mlOutput = try! mlModel.prediction(input: array)
-
+                    
                     let origin_x = Int(rect.origin.x) * out_scale
                     let origin_y = Int(rect.origin.y) * out_scale
                     let dataPointer = UnsafeMutableBufferPointer(start: mlOutput.dataPointer.assumingMemoryBound(to: Double.self),
                                                                  count: bufferSize)
-
+                    
                     DispatchQueue.concurrentPerform(iterations: 3) { channel in
                         DispatchQueue.concurrentPerform(iterations: out_block_size) { src_y in
                             DispatchQueue.concurrentPerform(iterations: out_block_size) { src_x in
@@ -416,20 +385,24 @@ public final class Waifu2x {
                             }
                         }
                     }
-
-                    didFinishedOneBlock(Double(rects.count))
+                    
+//                    didFinishedOneBlock(Double(rects.count))
+                    DispatchQueue.main.async {
+                        currentProgress.completedUnitCount += 1
+                    }
                 }
             }
-        }
+//        }
         
-        BiasRecorder.add(bias: .init(stage: .ml, time: model_pipelineDate.distance(to: Date())))
-        logger.info("ML Total: \(model_pipelineDate.distance(to: Date()).expressedAsTime())")
-        
-        let date = Date()
+        guard !Task.isCancelled else { return nil }
+//        BiasRecorder.add(bias: .init(stage: .ml, time: model_pipelineDate.distance(to: Date())))
+//        logger.info("ML Total: \(model_pipelineDate.distance(to: Date()).expressedAsTime())")
+//
+//        let date = Date()
         alpha_task?.wait()
-        logger.info("wait alpha: \(date.distance(to: Date()).expressedAsTime())")
+//        logger.info("wait alpha: \(date.distance(to: Date()).expressedAsTime())")
         
-        let generateImageDate = Date()
+//        let generateImageDate = Date()
         let cfbuffer = CFDataCreate(nil, imgData, out_width * out_height * channels)!
         let dataProvider = CGDataProvider(data: cfbuffer)!
         var bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue
@@ -438,16 +411,18 @@ public final class Waifu2x {
             bitmapInfo |= CGImageAlphaInfo.last.rawValue
         }
         
+        guard !Task.isCancelled else { return nil }
         var cgImage: CGImage? {
             CGImage(width: out_width, height: out_height, bitsPerComponent: 8, bitsPerPixel: 8 * channels, bytesPerRow: out_width * channels, space: colorSpace, bitmapInfo: CGBitmapInfo.init(rawValue: bitmapInfo), provider: dataProvider, decode: nil, shouldInterpolate: true, intent: CGColorRenderingIntent.defaultIntent)
             ??
             CGImage(width: out_width, height: out_height, bitsPerComponent: 8, bitsPerPixel: 8 * channels, bytesPerRow: out_width * channels, space: colorSpace, bitmapInfo: CGBitmapInfo.init(rawValue: 32), provider: dataProvider, decode: nil, shouldInterpolate: true, intent: CGColorRenderingIntent.defaultIntent)
         }
         
-        BiasRecorder.add(bias: .init(stage: .generateOutput, time: generateImageDate.distance(to: Date())))
-        logger.info("Generate Image: \(generateImageDate.distance(to: Date()).expressedAsTime())")
-        didFinishedOneBlock(686.439)
-        logger.info("Waifu2x finished with time: \(fullDate.distance(to: Date()).expressedAsTime())")
+//        BiasRecorder.add(bias: .init(stage: .generateOutput, time: generateImageDate.distance(to: Date())))
+//        logger.info("Generate Image: \(generateImageDate.distance(to: Date()).expressedAsTime())")
+//        didFinishedOneBlock(686.439)
+//        logger.info("Waifu2x finished with time: \(fullDate.distance(to: Date()).expressedAsTime())")
+        currentProgress.completedUnitCount = Int64(rects.count)
         
         return cgImage
     }

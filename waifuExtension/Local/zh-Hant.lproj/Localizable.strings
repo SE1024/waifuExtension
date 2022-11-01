@@ -52,8 +52,6 @@
 "Enable UHD:" = "開啓超高清";
 "Frame Interpolation:" = "補幀倍率";
 "Choose how many times more frames you want the video be." = "選擇補幀倍率";
-"Video segmentation:" = "視頻切割";
-"During processing, videos will be split into smaller ones, choose how long you want each smaller video be, in frames." = "在處理時，視頻將被切割成小塊，以減少內存使用。選擇每個小塊的長度，以幀為單位";
 "Enable Parallel" = "開啓多核計算";
 "Disable this to reduce processing speed in return for better memory performance." = "關閉以通過犧牲速度以換取更少的內存使用";
 "Memory Only" = "僅使用內存";
@@ -61,6 +59,7 @@
 "Return to previous page." = "回到上一頁";
 "Begin processing." = "開始處理";
 "Please install models in Preferences" = "請在設置中安裝模型";
+"This option is not customizable for this model." = "此選項對於該模型不可變";
 
 
 // ProcessingView
@@ -74,14 +73,13 @@
 "Status:" = "狀態";
 "Progress:" = "進度";
 "ML Model:" = "模型";
-"Processed:" = "已處理";
 "To be processed:" = "未處理";
 "0 item" = "無項目";
 "%@ items" = "%@個項目";
 "%@ item" = "%@個項目";
-"%@ items, %@ items pending" = "%@個項目，待處理%@個項目";
-"%@ item, %@ items pending" = "%@個項目，待處理%@個項目";
-"%@ items, %@ item pending" = "%@個項目，待處理%@個項目";
+"Processed: %@ items, %@ items pending" = "已處理%@個項目，待處理%@個項目";
+"Processed: %@ item, %@ items pending" = "已處理%@個項目，待處理%@個項目";
+"Processed: %@ items, %@ item pending" = "已處理%@個項目，待處理%@個項目";
 "Time Spent:" = "過去時間";
 "Time Remaining:" = "剩餘時間";
 "Paused" = "暫停";
@@ -126,8 +124,12 @@
 "Cache: Empty" = "無緩存";
 "Delete Cache" = "清楚緩存";
 
-// Process Config View
+// Video Config View
+"Waifu2x only.\nStore intermediate frames in memory instead of on disk." = "僅限Waifu2x\n將在處理中的幀儲存於隨機存取存儲器而非硬盤";
+"Waifu2x only.\nEncode intermediate frames in heic to reduce memory usage, may effect performance." = "僅限Waifu2x\n講在處理中的幀儲存為heic格式以減少內存使用，可能影響性能";
 "Video segmentation: %@ frames" = "视频分割大小: %@帧";
+"Video segmentation:" = "視頻切割";
+"During processing, videos will be split into smaller ones, choose how long you want each smaller video be, in frames." = "在處理時，視頻將被切割成小塊，以減少內存使用。選擇每個小塊的長度，以幀為單位";
 
 // ModelManager
 "Remove Model" = "去除模型";

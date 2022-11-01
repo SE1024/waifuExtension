@@ -178,30 +178,32 @@ public struct _ModelCoordinator: CustomStringConvertible, Codable, Hashable, Equ
         "ModelCoordinate<imageModel: \(imageModel), frameModel: \(frameModel), frameSegmentFrames: \(videoSegmentFrames), scaleLevel: \(scaleLevel), enableFrameInterpolation: \(enableFrameInterpolation), frameInterpolation: \(frameInterpolation), enableConcurrent: \(enableConcurrent)>"
     }
     
-    public var enableMemoryOnly: Bool = false
+    public var enableMemoryOnly: Bool = true
+    
+    public var enableCompressIntermediateFrames = false
     
     /// Waifu2x Excluded.
-    public func runImageModel(input: FinderItem, outputItem: FinderItem, task: ShellManager) {
+    public func runImageModel(input: inout FinderItem, outputItem: FinderItem, task: ShellManager) {
         switch self.imageModel {
         case .realcugan:
-            self.realcugan.run(inputItem: input, outputItem: outputItem, task: task)
+            self.realcugan.run(inputItem: &input, outputItem: outputItem, task: task)
         case .realesrgan:
-            self.realesrgan.run(inputItem: input, outputItem: outputItem, task: task)
+            self.realesrgan.run(inputItem: &input, outputItem: outputItem, task: task)
         case .realsr:
-            self.realsr.run(inputItem: input, outputItem: outputItem, task: task)
+            self.realsr.run(inputItem: &input, outputItem: outputItem, task: task)
         case .caffe:
             fatalError("Unexpected, use waifu2x.run instead")
         }
     }
     
-    public func runFrameModel(input1: String, input2: String, outputPath: String, task: ShellManager) {
+    public func runFrameModel(input1: FinderItem, input2: FinderItem, outputItem: FinderItem, task: ShellManager) {
         switch self.frameModel {
         case .cain:
-            self.cain.run(input1Item: FinderItem(at: input1), input2Item: FinderItem(at: input2), outputItem: FinderItem(at: outputPath), task: task)
+            self.cain.run(input1Item: input1, input2Item: input2, outputItem: outputItem, task: task)
         case .dain:
-            self.dain.run(input1Item: FinderItem(at: input1), input2Item: FinderItem(at: input2), outputItem: FinderItem(at: outputPath), task: task)
+            self.dain.run(input1Item: input1, input2Item: input2, outputItem: outputItem, task: task)
         case .rife:
-            self.rife.run(input1Item: FinderItem(at: input1), input2Item: FinderItem(at: input2), outputItem: FinderItem(at: outputPath), task: task)
+            self.rife.run(input1Item: input1, input2Item: input2, outputItem: outputItem, task: task)
         }
     }
 }

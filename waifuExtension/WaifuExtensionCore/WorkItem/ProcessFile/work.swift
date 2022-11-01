@@ -8,6 +8,7 @@
 import Foundation
 import Support
 import os
+import AVFoundation
 
 extension MainModel {
     
@@ -15,24 +16,22 @@ extension MainModel {
         let logger = Logger()
         logger.info("Process File started with model: \(model.description) with \(self.items.filter{ $0.type == .image }.count) images and \(self.items.filter{ $0.type == .video }.count) videos")
         
+        let increment = Int64(model.isCaffe ? log2(Double(model.scaleLevel)) : 1)
         // prepare progress, fill `manager: ProgressManager`
-        Task { @MainActor in
-            for i in self.items {
-                if i.type == .image {
-                    manager.images[i] = .init(manager: manager)
-                } else {
-                    let item = ProgressManager.Video.init(manager: manager)
-                    item.interpolationLevel = Double(model.frameInterpolation)
-                    item.totalFrames = Double(i.finderItem.avAsset!.frameRate!) * i.finderItem.avAsset!.duration.seconds
-                    manager.videos[i] = item
-                }
+        manager.progress = .discreteProgress(totalUnitCount: self.items.reduce(0) {
+            if $1.type == .image {
+                return $0 + increment
+            } else {
+                return $0 + Int64(AVAsset(at: $1.finderItem)?.framesCount ?? 0) * increment
             }
-        }
+        })
         
-        let images = self.items.filter({ $0.type == .image })
-        let videos = self.items.filter({ $0.type == .video })
+        let images = self.items.filter { $0.type == .image }
+        let videos = self.items.filter { $0.type == .video }
         
         outputPath.generateDirectory(isFolder: true)
+        
+        guard !Task.isCancelled else { return }
         
         if let image = FinderItem.bundleItem(forResource: "icon", withExtension: "icns")?.image {
             outputPath.setIcon(image: image)
@@ -44,19 +43,21 @@ extension MainModel {
             logger.info("Processing Images")
             
             if model.enableConcurrent && model.isCaffe {
-                await asyncAutoreleasepool {
-                    DispatchQueue.concurrentPerform(iterations: images.count) { imageIndex in
-                        processImage(currentImage: images[imageIndex], manager: manager, task: task, outputPath: outputPath, model: model, logger: logger)
-                    }
+                DispatchQueue.concurrentPerform(iterations: images.count) { imageIndex in
+                    guard !Task.isCancelled else { return }
+                    processImage(currentImage: images[imageIndex], manager: manager, task: task, outputPath: outputPath, model: model, logger: logger)
                 }
             } else {
                 for imageIndex in 0..<images.count {
+                    guard !Task.isCancelled else { return }
                     processImage(currentImage: images[imageIndex], manager: manager, task: task, outputPath: outputPath, model: model, logger: logger)
                 }
             }
             
             logger.info("Finished Processing Images")
         }
+        
+        guard !Task.isCancelled else { return }
         
         // process videos
         guard !videos.isEmpty else {
@@ -68,12 +69,12 @@ extension MainModel {
         manager.status("Processing videos")
         
         for currentVideo in videos {
+            guard !Task.isCancelled else { return }
             // Use this to prevent memory leak
-            await asyncAutoreleasepool {
-                manager.addCurrentItems(currentVideo)
-                await processVideo(currentVideo: currentVideo, manager: manager, task: task, outputPath: outputPath, model: model, logger: logger)
-                manager.removeFromCurrentItems(currentVideo)
-            }
+            
+            manager.addCurrentItems(currentVideo)
+            await processVideo(currentVideo: currentVideo, manager: manager, task: task, outputPath: outputPath, model: model, logger: logger)
+            manager.removeFromCurrentItems(currentVideo)
         }
         
     }

@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Support
-
+import AVFoundation
 
 
 public final class MainModel: ObservableObject {
@@ -21,7 +21,7 @@ public final class MainModel: ObservableObject {
                 guard !items.contains(item) else { return nil }
                 if item.image != nil {
                     return WorkItem(at: item, type: .image)
-                } else if item.avAsset?.videoTrack != nil {
+                } else if AVAsset(at: item)?.videoTrack != nil {
                     return WorkItem(at: item, type: .video)
                 } else {
                     return nil
@@ -38,9 +38,6 @@ public final class MainModel: ObservableObject {
     @MainActor
     public func reset() {
         self.items = []
-        DispatchQueue.global().async {
-            FinderItem.generatedFolder.clear()
-        }
     }
     
 }

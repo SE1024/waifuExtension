@@ -8,49 +8,52 @@
 import Foundation
 import Support
 import CoreMedia
+import AVFoundation
 
 /// Process video in memory only mode, multiple core. This method is memory-inefficient, but fastest.
 func processVideoMemoryOnlyDistributed(currentVideo: WorkItem, destination: FinderItem, manager: ProgressManager, model: ModelCoordinator) async {
     manager.status("Generating frames for \(currentVideo.fileName)")
     
-    guard let videoAsset = currentVideo.avAsset else { return }
-    guard let framesCount = videoAsset.framesCount else { return }
+    guard let videoAsset = AVAsset(at: currentVideo.finderItem) else { return }
     var firstFrame: CGImage?
     
-    guard var frames = await videoAsset.getFrames() else { return }
-    firstFrame = frames.first?.cgImage
-    let locker = NSRecursiveLock()
+    let frames: [CGImage]
     
-    let waifu2x = Waifu2x()
+    if #available(macOS 13, *) {
+        guard let generated = await videoAsset.generateFrames() else { return }
+        frames = generated
+    } else {
+        guard let generated = await videoAsset.getFrames() else { return }
+        frames = generated
+    }
     
-    DispatchQueue.concurrentPerform(iterations: framesCount) { index in
-        autoreleasepool {
-            let image = waifu2x.run(frames[index], model: model)
-            
-            locker.lock()
-            frames[index] = image!
-            locker.unlock()
-            
-            manager.videos[currentVideo]!.updateEnlarge()
+    firstFrame = frames.first
+    
+    if model.enableCompressIntermediateFrames {
+        let inferredFrames = frames.concurrentMap {
+            processFrameWaifu2x(source: $0, model: model, progress: manager.progress)!.data(using: .heic)!
         }
+        
+        manager.status("Converting frames to video for \(currentVideo.fileName)")
+        
+        let destinationDataProvider = DestinationDataProvider()
+        try! await AVAsset.convert(images: inferredFrames, toVideo: destination, videoFPS: videoAsset.frameRate!, colorSpace: firstFrame?.colorSpace, container: destinationDataProvider.videoContainer.avFileType, codec: destinationDataProvider.videoCodec.avVideoCodecType, getImage: { NativeImage(data: $0)!.cgImage! })
+    } else {
+        let inferredFrames = frames.concurrentMap {
+            processFrameWaifu2x(source: $0, model: model, progress: manager.progress)!
+        }
+        
+        manager.status("Converting frames to video for \(currentVideo.fileName)")
+        
+        let destinationDataProvider = DestinationDataProvider()
+        try! await AVAsset.convert(images: inferredFrames, toVideo: destination, videoFPS: videoAsset.frameRate!, colorSpace: firstFrame?.colorSpace, container: destinationDataProvider.videoContainer.avFileType, codec: destinationDataProvider.videoCodec.avVideoCodecType, getImage: { $0 })
     }
     
-    manager.status("Converting frames to video for \(currentVideo.fileName)")
-    print(destination, "<><><>")
-    
-    await asyncAutoreleasepool {
-        await FinderItem.convertImageSequenceToVideo(frames, videoPath: destination.path, videoSize: firstFrame!.size.scaled(by: CGFloat(model.caffe.scale)), videoFPS: videoAsset.frameRate!, colorSpace: firstFrame?.colorSpace)
-    }
     
     manager.status("Merging video with audio for \(currentVideo.fileName)")
-    await asyncAutoreleasepool {
-        await FinderItem.mergeVideoWithAudio(videoUrl: destination.url, audioUrl: currentVideo.finderItem.url)
-    }
     
+    if AVAsset(at: currentVideo.finderItem)?.audioTrack != nil {
+        try! await AVAsset.merge(video: destination, withAudio: currentVideo.finderItem)
+    }
     manager.status("\(currentVideo.fileName) Completed")
-    
-    // replace item
-    if DestinationDataProvider.main.isNoneDestination {
-        currentVideo.path = destination.path
-    }
 }

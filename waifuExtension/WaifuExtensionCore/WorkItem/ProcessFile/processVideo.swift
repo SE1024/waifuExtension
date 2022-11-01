@@ -9,8 +9,11 @@ import Foundation
 import Support
 import os
 import CoreMedia
+import AVFoundation
 
 func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellManagers, outputPath: FinderItem, model: ModelCoordinator, logger: Logger) async {
+    
+    let increment = Int64(model.isCaffe ? log2(Double(model.scaleLevel)) : 1)
     
     let filePath = currentVideo.finderItem.relativePath ?? (currentVideo.finderItem.fileName + currentVideo.finderItem.extensionName)
     let destinationFinderItem = outputPath.with(subPath: filePath)
@@ -25,7 +28,9 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
     
     outputPath.with(subPath: "tmp/\(filePath)").generateDirectory(isFolder: true)
     
-    let duration = currentVideo.finderItem.avAsset!.duration.seconds
+    let asset = AVAsset(at: currentVideo.finderItem)!
+    let duration = asset.duration.seconds
+    let frameRate = asset.frameRate!
     
     // enter what it used to be splitVideo(duration: Double, filePath: String, currentVideo: WorkItem)
     
@@ -36,7 +41,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
     
     // enter what it used to be splitVideo(withIndex segmentIndex: Int, duration: Double, filePath: String, currentVideo: WorkItem)
     
-    let videoSegmentLength = Double(model.videoSegmentFrames) / Double(currentVideo.finderItem.avAsset!.frameRate!)
+    let videoSegmentLength = Double(model.videoSegmentFrames) / Double(frameRate)
     let videoSegmentCount = Int((duration / videoSegmentLength).rounded(.up))
     
     // split into smaller videos
@@ -48,8 +53,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
             
             let segmentItem = outputPath.with(subPath: "tmp/\(filePath)/raw/splitVideo/video \(segmentSequence).m4v")
             segmentItem.generateDirectory()
-            guard segmentItem.avAsset == nil else {
-                
+            guard AVAsset(at: segmentItem) == nil else {
                 manager.onStatusProgressChanged(segmentIndex, videoSegmentCount)
                 return
             }
@@ -84,11 +88,10 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
             // generateImagesAndMergeToVideoForSegment
             
             let segmentsFinderItem = outputPath.with(subPath: "tmp/\(filePath)/raw/splitVideo/video \(generateFileName(from: index)).m4v")
-            guard let asset = segmentsFinderItem.avAsset else { return }
+            guard let asset = AVAsset(at: segmentsFinderItem) else { return }
             
             let vidLength: CMTime = asset.duration
             let seconds: Double = CMTimeGetSeconds(vidLength)
-            let frameRate = currentVideo.finderItem.avAsset!.frameRate!
             
             var requiredFramesCount = Int((seconds * Double(frameRate)).rounded())
             
@@ -99,10 +102,9 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
             let mergedVideoPath = outputPath.with(subPath: "/tmp/\(filePath)/processed/videos/\(indexSequence).m4v")
             mergedVideoPath.generateDirectory()
             
-            guard mergedVideoPath.avAsset == nil else {
+            guard AVAsset(at: mergedVideoPath) == nil else {
                 outputPath.with(subPath: "/tmp/\(filePath)/processed/\(indexSequence)").removeFile()
-                manager.videos[currentVideo]!.enlargeProgress = 1
-                manager.videos[currentVideo]!.interpolationLevel = 1
+                manager.progress.completedUnitCount += Int64(requiredFramesCount) * increment
                 // completion after all videos are finished.
                 return
             }
@@ -118,11 +120,10 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
             
             var colorSpace: CGColorSpace? = nil
             
-            
             var framesCounter = 0
             
             // write raw images
-            guard let frames = await segmentsFinderItem.avAsset!.getFrames() else { return }
+            guard let frames = await AVAsset(at: segmentsFinderItem)!.getFrames() else { return }
             framesCounter = frames.count
             
             for index in 0..<framesCounter {
@@ -147,7 +148,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                         if frameCounter == 0 {
                             FinderItem(at: "\(rawFramesFolder.path)/\(sequence).png").copy(to: FinderItem(at: "\(interpolatedFramesFolder.path)/\(generateFileName(from: 0)).png"))
                             
-                            manager.videos[currentVideo]!.updateInterpolation()
+//                            manager.videos[currentVideo]!.updateInterpolation()
                             
                             return
                         }
@@ -169,13 +170,13 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                                 item1.copy(to: output)
                             } else {
                                 let newTask = task.addManager()
-                                model.container.runFrameModel(input1: item1.path, input2: item2.path, outputPath: output.path, task: newTask)
+                                model.container.runFrameModel(input1: item1, input2: item2, outputItem: output, task: newTask)
                                 newTask.wait()
                             }
                         }
                         
                         guard model.frameInterpolation == 4 else {
-                            manager.videos[currentVideo]!.updateInterpolation()
+//                            manager.videos[currentVideo]!.updateInterpolation()
                             return
                         }
                         
@@ -184,7 +185,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                         
                         guard (FinderItem(at: "\(interpolatedFramesFolder.path)/\(intermediateSequence1).png").image == nil || FinderItem(at: "\(interpolatedFramesFolder.path)/\(intermediateSequence3).png").image == nil) else {
                             
-                            manager.videos[currentVideo]!.updateInterpolation()
+//                            manager.videos[currentVideo]!.updateInterpolation()
                             return
                         }
                         
@@ -196,7 +197,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                             item1.copy(to: output)
                         } else {
                             let newTask = task.addManager()
-                            model.container.runFrameModel(input1: item1.path, input2: item2.path, outputPath: output.path, task: newTask)
+                            model.container.runFrameModel(input1: item1, input2: item2, outputItem: output, task: newTask)
                             newTask.wait()
                         }
                         
@@ -208,11 +209,11 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                             item3.copy(to: output2)
                         } else {
                             let newTask = task.addManager()
-                            model.container.runFrameModel(input1: item3.path, input2: item4.path, outputPath: output2.path, task: newTask)
+                            model.container.runFrameModel(input1: item3, input2: item4, outputItem: output2, task: newTask)
                             newTask.wait()
                         }
                         
-                        manager.videos[currentVideo]!.updateInterpolation()
+//                        manager.videos[currentVideo]!.updateInterpolation()
                         
                     }
                     
@@ -221,7 +222,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                 interpolatedFramesFolder = rawFramesFolder
             }
             
-            framesCounter = interpolatedFramesFolder.children()?.filter{ $0.image != nil }.count ?? framesCounter
+            framesCounter = interpolatedFramesFolder.children(range: .contentsOfDirectory)?.filter{ $0.image != nil }.count ?? framesCounter
             
             // now process whatever interpolatedFramesFolder refers to
             
@@ -243,64 +244,55 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
                     let finderItemAtImageOutputPath = FinderItem(at: finishedFramesFolder.path + "/\(generateFileName(from: index)).png")
                     
                     guard finderItemAtImageOutputPath.image == nil else {
-                        manager.videos[currentVideo]!.updateEnlarge()
+                        manager.progress.completedUnitCount += increment
                         return
                     }
                     
                     autoreleasepool {
                         if index >= 1 && imageItem.image?.tiffRepresentation == FinderItem(at: folder.path + "/\(generateFileName(from: index - 1)).png").image?.tiffRepresentation {
                             FinderItem(at: finishedFramesFolder.path + "/\(generateFileName(from: index - 1)).png").copy(to: finderItemAtImageOutputPath)
-                            manager.videos[currentVideo]!.updateEnlarge()
+                            manager.progress.completedUnitCount += increment
                             return
                         }
                         
                         guard let image = imageItem.image?.cgImage else { print("no image"); return }
-                        var output: CGImage? = nil
-                        let waifu2x = Waifu2x()
-                        
-                        if model.scaleLevel == 4 {
-                            output = waifu2x.run(image, model: model)
-                            output = waifu2x.run(output!, model: model)
-                        } else if model.scaleLevel == 8 {
-                            output = waifu2x.run(image, model: model)
-                            output = waifu2x.run(output!, model: model)
-                            output = waifu2x.run(output!, model: model)
-                        } else {
-                            output = waifu2x.run(image, model: model)
-                        }
+                        let output = processFrameWaifu2x(source: image, model: model, progress: manager.progress)
                         
                         try! NativeImage(cgImage: output)?.write(to: finderItemAtImageOutputPath, option: .png)
                     }
-                    
-                    manager.videos[currentVideo]!.updateEnlarge()
                 }
                 
                 
             } else {
-                let newManager = task.addManager()
-                model.container.runImageModel(input: interpolatedFramesFolder, outputItem: finishedFramesFolder, task: newManager)
-                var lastProcess = 0.0
-                newManager.onOutputChanged { newLine in
-                    print(newLine)
-                    guard let process = inferenceProgress(newLine) else { return }
-                    if lastProcess > process {
-                        manager.videos[currentVideo]!.updateEnlarge()
+                
+                for index in 0..<framesCounter {
+                    let path = interpolatedFramesFolder.path + "/\(generateFileName(from: index)).png"
+                    var imageItem = FinderItem(at: path)
+                    
+                    let finderItemAtImageOutputPath = FinderItem(at: finishedFramesFolder.path + "/\(generateFileName(from: index)).png")
+                    
+                    guard finderItemAtImageOutputPath.image == nil else {
+                        manager.progress.completedUnitCount += 1
+                        return
                     }
-                    lastProcess = process
+                    
+                    /// Here it is safe to pass a mutable path, as no preprocess is needed.
+                    processFrameInstalled(source: &imageItem, output: finderItemAtImageOutputPath, model: model, progress: manager.progress, task: task)
                 }
-                newManager.wait()
             }
-            
-            let arbitraryFrame = FinderItem(at: "\(finishedFramesFolder.path)/000000.png")
-            let arbitraryFrameCGImage = arbitraryFrame.image!.cgImage!
             
             outputPath.with(subPath: "tmp/\(filePath)/raw/splitVideo/video \(indexSequence).m4v").removeFile()
             
-            let enlargedFrames: [FinderItem] = finishedFramesFolder.children()!
+            let enlargedFrames: [FinderItem] = finishedFramesFolder.children(range: .contentsOfDirectory)!
             print(finishedFramesFolder)
             
             logger.info("Start to convert image sequence to video at \(mergedVideoPath)")
-            await FinderItem.convertImageSequenceToVideo(enlargedFrames, videoPath: mergedVideoPath.path, videoSize: CGSize(width: arbitraryFrameCGImage.width, height: arbitraryFrameCGImage.height), videoFPS: currentVideo.finderItem.avAsset!.frameRate! * Float(model.frameInterpolation), colorSpace: colorSpace)
+            
+            let destinationDataProvider = DestinationDataProvider()
+            try! await AVAsset.convert(images: enlargedFrames, toVideo: mergedVideoPath, videoFPS: frameRate * Float(model.frameInterpolation), colorSpace: colorSpace, container: destinationDataProvider.videoContainer.avFileType, codec: destinationDataProvider.videoCodec.avVideoCodecType) { item in
+                item.image!.cgImage!
+            }
+            
             logger.info("Convert image sequence to video at \(mergedVideoPath): finished")
             outputPath.with(subPath: "/tmp/\(filePath)/processed/\(indexSequence)").removeFile()
             
@@ -319,16 +311,14 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
         manager.status("Merging video for \(currentVideo.fileName)")
         logger.info("merging video for \(filePath)")
         
-        await asyncAutoreleasepool {
-            await FinderItem.mergeVideos(from: outputPath.with(subPath: "/tmp/\(filePath)/processed/videos").children()!, toPath: outputPatH.path, tempFolder: outputPath.with(subPath: "tmp/\(filePath)/merging video").path, frameRate: currentVideo.finderItem.avAsset!.frameRate! * Float(model.frameInterpolation))
-        }
+        await FinderItem.mergeVideos(from: outputPath.with(subPath: "/tmp/\(filePath)/processed/videos").children(range: .contentsOfDirectory)!, toPath: outputPatH.path, tempFolder: outputPath.with(subPath: "tmp/\(filePath)/merging video").path, frameRate: frameRate * Float(model.frameInterpolation))
         
         manager.status("Merging video with audio for \(currentVideo.fileName)")
         logger.info("merging video and audio for \(filePath)")
         manager.onStatusProgressChanged(nil, nil)
         
-        await asyncAutoreleasepool {
-            await FinderItem.mergeVideoWithAudio(videoUrl: outputPatH.url, audioUrl: currentVideo.url)
+        if asset.audioTrack != nil {
+            try! await AVAsset.merge(video: outputPatH, withAudio: currentVideo.finderItem)
         }
         
         manager.status("\(currentVideo.fileName) Completed")
@@ -338,18 +328,7 @@ func processVideo(currentVideo: WorkItem, manager: ProgressManager, task: ShellM
         outputPatH.copy(to: destinationFinderItem)
         outputPath.with(subPath: "tmp").removeFile()
         
-        manager.videos[currentVideo]!.enlargeProgress = 1
-        manager.videos[currentVideo]!.interpolationProgress = 1
-        
         logger.info(">>>>> results: ")
         logger.info("Video \(currentVideo.finderItem.fileName) done")
-        
-        let info = [["", "frames", "duration", "fps"], ["before", "\(currentVideo.finderItem.avAsset!.duration.seconds * Double(currentVideo.finderItem.avAsset!.frameRate!))", "\(currentVideo.finderItem.avAsset!.duration.seconds)", "\(currentVideo.finderItem.avAsset!.frameRate!)"], ["after", "\(destinationFinderItem.avAsset!.duration.seconds * Double(destinationFinderItem.avAsset!.frameRate!))", "\(destinationFinderItem.avAsset!.duration.seconds)", "\(destinationFinderItem.avAsset!.frameRate!)"]].description()
-        logger.info("\n\(info)")
-    }
-    
-    // replace item
-    if DestinationDataProvider.main.isNoneDestination {
-        currentVideo.path = destinationFinderItem.path
     }
 }

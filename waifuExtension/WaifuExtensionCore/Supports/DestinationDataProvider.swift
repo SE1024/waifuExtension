@@ -231,15 +231,11 @@ final class DestinationDataProvider: DataProvider {
 
 struct _DestinationDataProvider: Codable, Hashable, Equatable {
     
-    var destinationFolder = FinderItem.downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
+    var destinationFolder = FinderItem.defaultOutputFolder
     
     var imageFormat = DestinationDataProvider.ImageFormat.default
     var videoContainer = DestinationDataProvider.VideoContainer.default
     var videoCodec = DestinationDataProvider.VideoCodec.default
-    
-    var isNoneDestination: Bool {
-        destinationFolder == .generatedFolder
-    }
     
 }
 

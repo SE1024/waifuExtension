@@ -29,7 +29,7 @@ struct Waifu2xModelView: View {
     @AppStorage("Waifu2x Model Style") private var modelStyle = "anime"
     
     func findModelClass() {
-        self.modelClass = Model_Caffe.allModels.filter{ ($0.style == modelStyle ) && ($0.noise == Int(chosenNoiseLevel)) && ($0.scale == ( model.scaleLevel == 1 ? 1 : 2 )) }.map(\.class).removingRepeatedElements()
+        self.modelClass = Model_Caffe.allModels.filter{ ($0.style == modelStyle ) && ($0.noise == Int(chosenNoiseLevel)) && ($0.scale == ( model.scaleLevel == 1 ? 1 : 2 )) }.map(\.class).removingDuplicates()
         guard let value = modelClass.first else {
             modelStyle = "anime"
             return
@@ -47,12 +47,10 @@ struct Waifu2xModelView: View {
                 .help("denoise level 3 recommended.")
         }
         .onAppear {
-            DispatchQueue(label: "background").async {
-                findModelClass()
-                self.scaleLevels = !containVideo ? [1, 2, 4, 8] : [1, 2]
-                if self.containVideo && model.scaleLevel > 2 {
-                    model.scaleLevel = 2
-                }
+            findModelClass()
+            self.scaleLevels = !containVideo ? [1, 2, 4, 8] : [1, 2]
+            if self.containVideo && model.scaleLevel > 2 {
+                model.scaleLevel = 2
             }
         }
         .onChange(of: chosenNoiseLevel) { _ in
@@ -70,10 +68,48 @@ struct Waifu2xModelView: View {
         .onChange(of: chosenModelClass) { newValue in
             model.caffe = Model_Caffe.allModels.filter({ ($0.style == modelStyle) && ($0.noise == Int(chosenNoiseLevel)) && ($0.scale == ( model.scaleLevel == 1 ? 1 : 2 )) }).first!
         }
-        .onChange(of: dataProvider) { _ in
+        .onChange(of: dataProvider.container) { _ in
             findModelClass()
         }
     }
+}
+
+
+struct ChooseModelOptionView<T>: View where T: CustomStringConvertible & Hashable {
+    
+    private let title: LocalizedStringKey
+    
+    @Binding var selection: T
+    
+    private let options: [T]
+    
+    init(_ title: LocalizedStringKey, selection: Binding<T>, options: [T]) {
+        self.title = title
+        self._selection = selection
+        self.options = options
+    }
+    
+    var body: some View {
+        HStack {
+            HStack {
+                Spacer()
+                
+                Text(title)
+            }
+            .frame(width: 150, alignment: .trailing)
+            .padding(.horizontal)
+            
+            Picker("", selection: $selection) {
+                ForEach(options, id: \.self) {
+                    Text(LocalizedStringKey($0.description))
+                }
+            }
+            .disabled(options.count == 1)
+        }
+        .help(options.count == 1 ? "This option is not customizable for this model." : "")
+            
+    }
+    
 }
 
 
@@ -88,13 +124,6 @@ struct SpecificationsView: View {
     @EnvironmentObject private var dataProvider: ModelDataProvider
     @EnvironmentObject private var model: ModelCoordinator
     
-    private var imageModelNotInstalled: Bool {
-        if let model = model.chosenImageModel {
-            return !model.programItem.isExistence
-        } else {
-            return false
-        }
-    }
     private var frameModelNotInstalled: Bool {
         if let model = model.chosenFrameModel {
             return !model.programItem.isExistence
@@ -124,20 +153,19 @@ struct SpecificationsView: View {
                     if model.imageModel == .caffe {
                         Waifu2xModelView(containVideo: containVideo)
                     } else if model.imageModel == .realcugan {
-                        DoubleView("Model Name:",    selection: $model.realcugan.modelName,    options: model.realcugan.modelNameOptions)
-                        DoubleView("Scale Level:",   selection: $model.realcugan.scaleLevel,   options: model.realcugan.scaleLevelOptions)
-                        DoubleView("Denoise Level:", selection: $model.realcugan.denoiseLevel, options: model.realcugan.denoiseLevelOption)
+                        ChooseModelOptionView("Model Name:",    selection: $model.realcugan.modelName,    options: model.realcugan.modelNameOptions)
+                        ChooseModelOptionView("Scale Level:",   selection: $model.realcugan.scaleLevel,   options: model.realcugan.scaleLevelOptions)
+                        ChooseModelOptionView("Denoise Level:", selection: $model.realcugan.denoiseLevel, options: model.realcugan.denoiseLevelOption)
                     } else if model.imageModel == .realesrgan {
-                        DoubleView("Model Name:",    selection: $model.realesrgan.modelName,    options: model.realesrgan.modelNameOptions)
-                        DoubleView("Scale Level:",   selection: $model.realesrgan.scaleLevel,   options: model.realesrgan.scaleLevelOptions)
-                        DoubleView("Denoise Level:", selection: $model.realesrgan.denoiseLevel, options: model.realesrgan.denoiseLevelOption)
+                        ChooseModelOptionView("Model Name:",    selection: $model.realesrgan.modelName,    options: model.realesrgan.modelNameOptions)
+                        ChooseModelOptionView("Scale Level:",   selection: $model.realesrgan.scaleLevel,   options: model.realesrgan.scaleLevelOptions)
+                        ChooseModelOptionView("Denoise Level:", selection: $model.realesrgan.denoiseLevel, options: model.realesrgan.denoiseLevelOption)
                     } else if model.imageModel == .realsr {
-                        DoubleView("Model Name:",    selection: $model.realsr.modelName,    options: model.realsr.modelNameOptions)
-                        DoubleView("Scale Level:",   selection: $model.realsr.scaleLevel,   options: model.realsr.scaleLevelOptions)
-                        DoubleView("Denoise Level:", selection: $model.realsr.denoiseLevel, options: model.realsr.denoiseLevelOption)
+                        ChooseModelOptionView("Model Name:",    selection: $model.realsr.modelName,    options: model.realsr.modelNameOptions)
+                        ChooseModelOptionView("Scale Level:",   selection: $model.realsr.scaleLevel,   options: model.realsr.scaleLevelOptions)
+                        ChooseModelOptionView("Denoise Level:", selection: $model.realsr.denoiseLevel, options: model.realsr.denoiseLevelOption)
                     }
                 }
-                .disabled(imageModelNotInstalled)
                 
                 if self.containVideo {
                     Divider()
@@ -210,14 +238,6 @@ struct SpecificationsView: View {
             HStack {
                 Spacer()
 
-                if model.imageModel == .caffe && !model.enableFrameInterpolation && self.containVideo {
-                    Toggle(isOn: $model.enableMemoryOnly) {
-                        Text("Memory Only")
-                            .help("Use this option only if you are certain it is safe to keep all the intermediate images in the memory.")
-                    }
-                    .padding(.horizontal)
-                }
-
                 Button {
                     dismiss()
                 } label: {
@@ -237,7 +257,7 @@ struct SpecificationsView: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .help("Begin processing.")
-                .disabled(imageModelNotInstalled || (model.enableFrameInterpolation && frameModelNotInstalled))
+                .disabled(model.enableFrameInterpolation && frameModelNotInstalled)
             }
         }
         .padding()

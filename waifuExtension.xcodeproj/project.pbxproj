@@ -25,7 +25,9 @@
 		B4953B032822478D003F7257 /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4953B022822478D003F7257 /* ProcessingView.swift */; };
 		B4968CB52885E6330091AF2E /* WorkItemDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4968CB42885E6330091AF2E /* WorkItemDocument.swift */; };
 		B4972090287DD3CC0039B9F2 /* StatusObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B497208F287DD3CC0039B9F2 /* StatusObserver.swift */; };
+		B4B6A9AE28A4D62B00013224 /* processFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6A9AD28A4D62B00013224 /* processFrame.swift */; };
 		B4B8B8482879FF2000585DA5 /* ProcessConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B8B8472879FF2000585DA5 /* ProcessConfig.swift */; };
+		B4B99B2E291192C80048ABD9 /* VideoConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B99B2D291192C80048ABD9 /* VideoConfigView.swift */; };
 		B4CFCD592885A0A30065B67C /* work.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4CFCD582885A0A30065B67C /* work.swift */; };
 		B4CFCD5B2885A12C0065B67C /* processImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4CFCD5A2885A12C0065B67C /* processImage.swift */; };
 		B4D8A42C2876A13A005E9A37 /* Process Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8A3EE2876A13A005E9A37 /* Process Supports.swift */; };
@@ -109,7 +111,9 @@
 		B4968CB42885E6330091AF2E /* WorkItemDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkItemDocument.swift; sourceTree = "<group>"; };
 		B497208F287DD3CC0039B9F2 /* StatusObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusObserver.swift; sourceTree = "<group>"; };
 		B4972093287DE0B60039B9F2 /* ChangeLog.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ChangeLog.md; sourceTree = "<group>"; };
+		B4B6A9AD28A4D62B00013224 /* processFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = processFrame.swift; sourceTree = "<group>"; };
 		B4B8B8472879FF2000585DA5 /* ProcessConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessConfig.swift; sourceTree = "<group>"; };
+		B4B99B2D291192C80048ABD9 /* VideoConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoConfigView.swift; sourceTree = "<group>"; };
 		B4CFCD582885A0A30065B67C /* work.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = work.swift; sourceTree = "<group>"; };
 		B4CFCD5A2885A12C0065B67C /* processImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = processImage.swift; sourceTree = "<group>"; };
 		B4D8A3EE2876A13A005E9A37 /* Process Supports.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Process Supports.swift"; sourceTree = "<group>"; };
@@ -258,6 +262,7 @@
 			children = (
 				B48748D528563CC200ECD00E /* ContainerView.swift */,
 				B445F6FF27585906004BAE04 /* ConfigurationView.swift */,
+				B4B99B2D291192C80048ABD9 /* VideoConfigView.swift */,
 				B4B8B8472879FF2000585DA5 /* ProcessConfig.swift */,
 				B4E96BC527EF6CFD00A2D4B1 /* ModelManager.swift */,
 			);
@@ -302,6 +307,7 @@
 			children = (
 				B4CFCD582885A0A30065B67C /* work.swift */,
 				B4CFCD5A2885A12C0065B67C /* processImage.swift */,
+				B4B6A9AD28A4D62B00013224 /* processFrame.swift */,
 				B41BD2982885BBA10078EFD6 /* MemoryOnly */,
 				B41BD2962885BA760078EFD6 /* processVideo.swift */,
 			);
@@ -313,8 +319,8 @@
 			children = (
 				B4D8A3ED2876A13A005E9A37 /* Supports */,
 				B4D8A3EF2876A13A005E9A37 /* Models */,
-				B4D8A4272876A13A005E9A37 /* Assets */,
 				B4D8A4292876A13A005E9A37 /* WorkItem */,
+				B4D8A4272876A13A005E9A37 /* Assets */,
 			);
 			path = WaifuExtensionCore;
 			sourceTree = "<group>";
@@ -532,7 +538,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1310;
-				LastUpgradeCheck = 1400;
+				LastUpgradeCheck = 1410;
 				TargetAttributes = {
 					B41C4737274AA7850024ECB7 = {
 						CreatedOnToolsVersion = 13.1;
@@ -601,6 +607,7 @@
 				B4D8A4552876A13A005E9A37 /* MetalBicubic.swift in Sources */,
 				B4CFCD5B2885A12C0065B67C /* processImage.swift in Sources */,
 				B4D8A42F2876A13A005E9A37 /* upconv_7_anime_style_art_rgb_noise1_scale2.mlpackage in Sources */,
+				B4B6A9AE28A4D62B00013224 /* processFrame.swift in Sources */,
 				B4D8A44C2876A13A005E9A37 /* BackgroundTask.swift in Sources */,
 				B4D8A44B2876A13A005E9A37 /* Waifu2x.swift in Sources */,
 				B4D8A4342876A13A005E9A37 /* upconv_7_photo_scale2.mlpackage in Sources */,
@@ -619,6 +626,7 @@
 				B4D8A4452876A13A005E9A37 /* anime_style_art_rgb_noise1_model.mlpackage in Sources */,
 				B4D8A43B2876A13A005E9A37 /* anime_style_art_noise1_model.mlpackage in Sources */,
 				B4D8A44A2876A13A005E9A37 /* Bicubic.swift in Sources */,
+				B4B99B2E291192C80048ABD9 /* VideoConfigView.swift in Sources */,
 				B4968CB52885E6330091AF2E /* WorkItemDocument.swift in Sources */,
 				B4D8A4332876A13A005E9A37 /* upconv_7_photo_noise2_scale2.mlpackage in Sources */,
 				B4D8A43D2876A13A005E9A37 /* photo_noise3_model.mlpackage in Sources */,
@@ -673,6 +681,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -735,6 +744,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -793,11 +803,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = YES;
 				CODE_SIGN_ENTITLEMENTS = waifuExtension/waifuExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 375;
+				CURRENT_PROJECT_VERSION = 392;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"waifuExtension/Preview Content\"";
 				DEVELOPMENT_TEAM = UJK52W4D7G;
@@ -811,10 +823,11 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = "5.0 Beta 9";
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Vaida.waifuExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -825,11 +838,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = YES;
 				CODE_SIGN_ENTITLEMENTS = waifuExtension/waifuExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 375;
+				CURRENT_PROJECT_VERSION = 392;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"waifuExtension/Preview Content\"";
 				DEVELOPMENT_TEAM = UJK52W4D7G;
@@ -843,10 +858,11 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = "5.0 Beta 9";
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Vaida.waifuExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

@@ -5,6 +5,8 @@
 //  Created by Vaida on 7/19/22.
 //
 
+/*
+
 import Foundation
 import os
 import Support
@@ -142,7 +144,7 @@ func processVideoMemoryOnlySingleCore(currentVideo: WorkItem, destination: Finde
                                 // Draw image into context
                                 guard let cgImage = try? imageGenerator.copyCGImage(at: requestedTimes[frameIndex], actualTime: nil) else { return }
                                 guard var cgImage = waifu2x.run(cgImage, model: model) else { return }
-                                manager.videos[currentVideo]!.updateEnlarge()
+//                                manager.videos[currentVideo]!.updateEnlarge()
                                 
                                 if let colorSpace, colorSpace != cgImage.colorSpace {
                                     cgImage = cgImage.copy(colorSpace: colorSpace)!
@@ -188,9 +190,7 @@ func processVideoMemoryOnlySingleCore(currentVideo: WorkItem, destination: Finde
     }
     
     manager.status("Merging video with audio for \(currentVideo.fileName)")
-    await asyncAutoreleasepool {
-        await FinderItem.mergeVideoWithAudio(videoUrl: destination.url, audioUrl: currentVideo.finderItem.url)
-    }
+    try! await AVAsset.merge(video: destination, withAudio: currentVideo.finderItem)
     
     manager.status("\(currentVideo.fileName) Completed")
     
@@ -199,3 +199,5 @@ func processVideoMemoryOnlySingleCore(currentVideo: WorkItem, destination: Finde
         currentVideo.path = destination.path
     }
 }
+
+*/

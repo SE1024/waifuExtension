@@ -87,7 +87,7 @@ struct ModelView: View {
         .fileImporter(isPresented: $showImportCatalog, allowedContentTypes: [.folder]) { result in
             guard let result = try? result.get() else { return }
             let item = FinderItem(at: result)
-            guard item.isDirectory && item.name.contains(model.rawName) && item.children()!.contains(where: { $0.name == model.rawName }) else { return }
+            guard item.isDirectory! && item.name.contains(model.rawName) && item.children(range: .contentsOfDirectory)!.contains(where: { $0.name == model.rawName }) else { return }
             
             dataProvider.location[model.rawName] = item.path
         }

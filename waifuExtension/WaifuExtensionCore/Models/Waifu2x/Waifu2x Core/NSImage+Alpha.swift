@@ -16,7 +16,7 @@ extension CGImage {
         let width = Int(self.size.width)
         let height = Int(self.size.height)
         let data = UnsafeMutablePointer<T>.allocate(capacity: width * height * 4)
-        data.initialize(repeating: zero, count: width * height)
+//        data.initialize(repeating: zero, count: width * height)
         let alphaOnly = CGContext(data: data, width: width, height: height, bitsPerComponent: bits, bytesPerRow: width * 4 * bits / 8, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         alphaOnly?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         return data

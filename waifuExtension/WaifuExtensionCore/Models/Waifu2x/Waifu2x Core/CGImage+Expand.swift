@@ -9,6 +9,7 @@
 import CoreML
 import Cocoa
 import os
+import Support
 
 extension CGImage {
     
@@ -16,20 +17,18 @@ extension CGImage {
     /// The model will shrink the input image by 7 px.
     ///
     /// - Returns: Float array of rgb values
-    public func expand(withAlpha: Bool, shrink_size: Int, clip_eta8: Float) -> (array: UnsafeMutablePointer<Float>, length: Int) {
+    public func expand(withAlpha: Bool, shrink_size: Int, clip_eta8: Float) -> (array: UnsafeMutablePointer<Float>, length: Int, requiresDeallocate: Bool) {
         
         let width = self.width
         let height = self.height
         
         let rect = NSRect.init(origin: .zero, size: CGSize(width: width, height: height))
         
-        let date = Date()
         // Redraw image in 32-bit RGBA
         let data = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height * 4)
-        data.initialize(repeating: 0, count: width * height * 4)
-        defer {
-            data.deallocate()
-        }
+//        data.initialize(repeating: 0, count: width * height * 4)
+        defer { data.deallocate() }
+        
         autoreleasepool {
             let context = CGContext(data: data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 4 * width, space: self.colorSpace ?? CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue)
             context?.draw(self, in: rect)
@@ -38,11 +37,11 @@ extension CGImage {
         let exwidth = width + 2 * shrink_size
         let exheight = height + 2 * shrink_size
         
-        var arr = UnsafeMutablePointer<Float>.allocate(capacity: 3 * exwidth * exheight)
-        Logger().info("To expand image, allocate data array & draw cg context took: \(date.distance(to: Date()).expressedAsTime())")
+        let arr: UnsafeMutablePointer<Float>
+        let requiresDeallocate: Bool
         
-        if let device = MTLCreateSystemDefaultDevice(), let library = device.makeDefaultLibrary() {
-            let constants = MTLFunctionConstantValues()
+        do {
+            var manager = try MetalManager(name: "ExpandWidthHeight", outputElementType: Float.self)
             
             var shrink_size_pte = shrink_size
             var clip_eta8_pte = clip_eta8
@@ -50,52 +49,27 @@ extension CGImage {
             var exwidth_pte = exwidth
             var exheight_pte = exheight
             
-            constants.setConstantValue(&shrink_size_pte, type: MTLDataType.int,   index: 0)
-            constants.setConstantValue(&clip_eta8_pte,   type: MTLDataType.float, index: 1)
-            constants.setConstantValue(&width_pte,       type: MTLDataType.int,   index: 2)
-            constants.setConstantValue(&exwidth_pte,     type: MTLDataType.int,   index: 3)
-            constants.setConstantValue(&exheight_pte,    type: MTLDataType.int,   index: 4)
+            manager.setConstant(&shrink_size_pte, type: .int)
+            manager.setConstant(&clip_eta8_pte,   type: .float)
+            manager.setConstant(&width_pte,       type: .int)
+            manager.setConstant(&exwidth_pte,     type: .int)
+            manager.setConstant(&exheight_pte,    type: .int)
             
-            // Call the metal function. The name is the function name.
-            let metalFunction = try! library.makeFunction(name: "ExpandWidthHeight", constantValues: constants)
-            // creates the pipe would stores the calculation
-            let pipelineState = try! device.makeComputePipelineState(function: metalFunction)
+            try manager.submitConstants()
             
-            // generate the buffers where the argument is stored in memory.
-            let commandQueue = device.makeCommandQueue()!
-            let commandBuffer = commandQueue.makeCommandBuffer()!
-            let commandEncoder = commandBuffer.makeComputeCommandEncoder()!
+            manager.setGridSize(width: width, height: height)
             
-            // pass the input array. Be really careful with the length, otherwise memory error would occur.
-            let inputArrayBuffer = device.makeBuffer(bytes: data, length: width * height * 4 * MemoryLayout<UInt8>.size, options: .storageModeShared)!
-            // generate the buffer for output array. Also be careful with length.
-            let resultArrayBuffer = device.makeBuffer(length: width * height * 4 * MemoryLayout<Float>.size, options: .storageModeShared)!
+            try manager.setInputBuffer(data, length: width * height * 4)
+            try manager.setOutputBuffer(count: width * height * 4)
             
-            // pass in the buffers. The indexes need to be the same as defined in .metal file
-            commandEncoder.setComputePipelineState(pipelineState)
-            commandEncoder.setBuffer(inputArrayBuffer, offset: 0, index: 0)
-            commandEncoder.setBuffer(resultArrayBuffer, offset: 0, index: 1)
+            try manager.perform()
             
-            // The size of the `thread_position_in_grid` in .metal. the three arguments represent the x, y, z dimensions.
-            let gridSize = MTLSizeMake(width, height, 1)
+            arr = manager.getOutputPointer().bindMemory(to: Float.self, capacity: width * height * 4)
+            requiresDeallocate = false
+        } catch {
+            arr = UnsafeMutablePointer<Float>.allocate(capacity: width * height * 4)
+            requiresDeallocate = true
             
-            // Defines the size which can calculate concurrently. the three arguments represent the x, y, z dimensions.
-            let w = pipelineState.threadExecutionWidth
-            let h = pipelineState.maxTotalThreadsPerThreadgroup / w
-            let threadsPerThreadGroup = MTLSizeMake(w, h, 1)
-            commandEncoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerThreadGroup)
-            
-            // Run the metal.
-            commandEncoder.endEncoding()
-            commandBuffer.commit()
-            commandBuffer.waitUntilCompleted()
-            
-            // obtain the results. Now, the results are only just raw pointers.
-            let rawPointer = resultArrayBuffer.contents()
-            
-            arr = rawPointer.bindMemory(to: Float.self, capacity: width * height * 4)
-            
-        } else {
             DispatchQueue.concurrentPerform(iterations: height) { y in
                 DispatchQueue.concurrentPerform(iterations: width) { x in
                     let xx = x + shrink_size
@@ -278,7 +252,7 @@ extension CGImage {
             }
         }
         
-        return (arr, 3 * exwidth * exheight)
+        return (arr, 3 * exwidth * exheight, requiresDeallocate)
     }
     
 }

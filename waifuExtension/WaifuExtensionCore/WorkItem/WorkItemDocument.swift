@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 
 @dynamicMemberLookup public class WorkItemDocument: Document {
     
+    public static var coderFormat: Data.CodingFormat = .json()
+    
     public typealias Snapshot = [WorkItem]
     
     @Published public var container: Snapshot

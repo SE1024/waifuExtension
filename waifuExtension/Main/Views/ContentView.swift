@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Support
+import AVFoundation
 
 struct ContentView: View {
     
@@ -22,17 +23,17 @@ struct ContentView: View {
     @EnvironmentObject private var modelDataProvider: ModelDataProvider
     
     @AppStorage("ContentView.aspectRatio") private var aspectRatio = true
-    @AppStorage("defaultOutputPath") private var outputPath: FinderItem = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
+    @AppStorage("defaultOutputPath") private var outputPath: FinderItem = .defaultOutputFolder
     
     var body: some View {
         VStack {
-            DropView(disabled: destination.isNoneDestination && isFinished, isShowingPrompt: images.items.isEmpty) { item in
-                item.image != nil || item.avAsset?.videoTrack != nil
+            DropView(isShowingPrompt: images.items.isEmpty) { item in
+                item.image != nil || AVAsset(at: item)?.videoTrack != nil
             } handler: { items in
                 let newItems = items.compactMap { item in
                     if item.image != nil {
                         return WorkItem(at: item, type: .image)
-                    } else if item.avAsset?.videoTrack != nil {
+                    } else if AVAsset(at: item)?.videoTrack != nil {
                         return WorkItem(at: item, type: .video)
                     } else {
                         return nil
@@ -45,12 +46,6 @@ struct ContentView: View {
                         LazyVGrid(columns: Array(repeating: .init(.flexible()), count: Int(8 / gridNumber))) {
                             ForEach(images.items) { item in
                                 GridItemView(item: item, geometry: geometry, gridNumber: gridNumber, images: images)
-                                    .onDrag(disabled: !(destination.isNoneDestination && isFinished)) {
-                                        withAnimation {
-                                            images.items.removeAll { $0 == item }
-                                        }
-                                        return item.itemProvider!
-                                    }
                             }
                         }
                         .padding()
@@ -66,7 +61,7 @@ struct ContentView: View {
         .sheet(isPresented: $isProcessing) {
             ProcessingView(isFinished: $isFinished, images: images)
                 .padding()
-                .frame(width: images.items.count > 1 ? 600 : 570, height: 250)
+                .frame(width: 600, height: images.items.count > 1 ? 200 : 170)
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
@@ -109,30 +104,23 @@ struct ContentView: View {
                 .frame(width: 150)
                 .help("Set the size of each thumbnail.")
 
-                if !(isFinished && destination.isNoneDestination) {
-                    Button("Add Item") {
-                        let panel = NSOpenPanel()
-                        panel.allowsMultipleSelection = true
-                        panel.canChooseDirectories = true
-                        if panel.runModal() == .OK {
-                            Task {
-                                await self.images.append(from: panel.urls.map{ FinderItem(at: $0) })
-                            }
+                Button("Add Item") {
+                    let panel = NSOpenPanel()
+                    panel.allowsMultipleSelection = true
+                    panel.canChooseDirectories = true
+                    if panel.runModal() == .OK {
+                        Task {
+                            await self.images.append(from: panel.urls.map{ FinderItem(at: $0) })
                         }
                     }
-                    .help("Add another item.")
-                    
-                    Button("Done") {
-                        isSheetShown = true
-                    }
-                    .disabled(images.items.isEmpty || isSheetShown)
-                    .help("Begin processing.")
-                } else {
-                    Button("Export") {
-                        isShowingExportDialog = true
-                    }
-                    .help("Export finished items")
                 }
+                .help("Add another item.")
+                
+                Button("Done") {
+                    isSheetShown = true
+                }
+                .disabled(images.items.isEmpty || isSheetShown)
+                .help("Begin processing.")
             }
         }
         .onChange(of: images.items) { newValue in

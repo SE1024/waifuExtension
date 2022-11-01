@@ -17,9 +17,7 @@ struct ConfigurationView: View {
     @EnvironmentObject private var destination: DestinationDataProvider
     
     private var destinationName: LocalizedStringKey {
-        if destination.destinationFolder == .generatedFolder {
-            return "None"
-        } else if destination.destinationFolder == .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: "")) {
+        if destination.destinationFolder == .defaultOutputFolder {
             return "Downloads/Waifu Output"
         } else {
             return .init(destination.destinationFolder.relativePath(to: .homeDirectory) ?? destination.destinationFolder.path)
@@ -29,11 +27,7 @@ struct ConfigurationView: View {
     var destinationMenu: some View {
         Menu(destinationName) {
             Button("Downloads/Waifu Output") {
-                destination.destinationFolder = .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
-            }
-            
-            Button("None") {
-                destination.destinationFolder = .generatedFolder
+                destination.destinationFolder = .defaultOutputFolder
             }
             
             Divider()
@@ -48,20 +42,14 @@ struct ConfigurationView: View {
         VStack(alignment: .leading) {
             
             Group {
-                if #available(macOS 13.0, *) {
-                    LabeledContent("Destination") {
-                        destinationMenu
-                    }
-                } else {
-                    HStack {
-                        Text("Destination")
-                        
-                        destinationMenu
-                    }
+                HStack {
+                    Text("Destination")
+                    
+                    destinationMenu
                 }
             }
             .fileImporter(isPresented: $isShowingImportDialog, allowedContentTypes: [.directory]) { result in
-                guard let resultItem = FinderItem(at: try? result.get()), resultItem.isDirectory else {
+                guard let resultItem = FinderItem(at: try? result.get()), resultItem.isDirectory! else {
                     alterManager = AlertManager("Please choose a folder.")
                     return
                 }
@@ -69,7 +57,7 @@ struct ConfigurationView: View {
             }
             
             Text {
-                destination.isNoneDestination ? "Instead of putting into a folder, drag them somewhere" : "The folder where the generated images are stored."
+                "The folder where the generated images are stored."
             }
             .font(.callout)
             .foregroundColor(.secondary)
@@ -117,8 +105,8 @@ struct DestinationDataProvideeView<Providee: DestinationDataProvidee>: View {
 
 extension FinderItem {
     
-    static var generatedFolder: FinderItem {
-        .temporaryDirectory.with(subPath: "Generated Folder")
+    static var defaultOutputFolder: FinderItem {
+        .downloadsDirectory.with(subPath: NSLocalizedString("Waifu Output", comment: ""))
     }
     
 }
